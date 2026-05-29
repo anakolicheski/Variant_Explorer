@@ -1,281 +1,228 @@
-# Fresh Database Setup Guide
+# Getting Started with the Cooper Lab Genetic Variants Explorer
 
-## Starting from Scratch (No Existing Data)
+This guide walks you through setting up and running the app from scratch. No prior experience with R or programming is required.
 
-If you want to start a completely new variant database without any pre-existing annotation, genotype and phenotype files, follow this guide.
+---
 
-## Prerequisites
+## What You Will Need
 
-1. R (version 4.0 or higher)
-2. Required R packages:
-   ```r
-   install.packages(c("shiny", "shinythemes", "tidyverse", "readxl", 
-                     "DT", "jsonlite", "httr", "purrr", "dplyr", 
-                     "biomaRt", "trackViewer", "GenomicRanges", 
-                     "writexl", "stringr", "readr", "bslib", "shinyWidgets"))
-   ```
+- A computer running Windows, Mac, or Linux
+- Your annotated variant files (TSV format) — see [Preparing Your Variant Files](#preparing-your-variant-files) below if you are starting from VCF files
+- About 20–30 minutes for a first-time setup
 
-## Step 1: Initial Setup
+---
 
-### Option A: Automated Setup (Recommended)
+## Step 1 — Download the App
 
-Run the setup script to create all necessary files and directories:
+1. Go to the releases page of this repository:
+   `https://github.com/your-org/cooper-lab-variants/releases`
+2. Under the latest release, click **Source code (zip)** to download the app
+3. Once downloaded, **unzip** the file — on Windows right-click and choose "Extract All"; on Mac double-click the zip file
+4. Move the unzipped folder somewhere easy to find, like your Desktop or Documents folder
+5. Rename it something simple like `variants-app`
+
+Your folder should look like this when you open it:
+
+```
+variants-app/
+├── app/
+├── test_data/
+├── preprocessing/
+└── README.md
+```
+
+---
+
+## Step 2 — Install R and RStudio
+
+You need two free programs: **R** (the programming language) and **RStudio** (a user-friendly interface for running R). Think of R as the engine and RStudio as the dashboard.
+
+1. Download and install R from [cran.r-project.org](https://cran.r-project.org)
+   - Windows: click "Download R for Windows" → "base" → "Download R x.x.x for Windows"
+   - Mac: click "Download R for macOS" and choose the version for your chip (Apple Silicon or Intel)
+2. Download and install RStudio from [posit.co/download/rstudio-desktop](https://posit.co/download/rstudio-desktop)
+   - Choose the free "RStudio Desktop" version
+3. Open **RStudio** (not R directly — always use RStudio)
+
+---
+
+## Step 3 — Install the Required R Packages
+
+Packages are add-ons that give R extra functionality. You only need to do this once.
+
+In RStudio, find the **Console** panel (bottom left, shows a `>` prompt) and paste in the following, then press Enter:
 
 ```r
-source("setup_fresh_database.R")
+install.packages(c(
+  "shiny", "shinythemes", "tidyverse", "readxl", "writexl",
+  "DT", "jsonlite", "httr", "purrr", "dplyr", "readr", "stringr"
+))
 ```
 
-This will:
-- Create `annotations/` directory
-- Create `New_genotypes/` directory
-- Create empty template files (Phenotypes.xlsx, cram_paths.xlsx, candidates.csv)
-- Verify all required module files exist
-
-### Option B: Manual Setup
-
-1. **Create directories:**
-   ```r
-   dir.create("annotations", recursive = TRUE)
-   dir.create("New_genotypes", recursive = TRUE)
-   ```
-
-2. **Create Phenotypes.xlsx:**
-   ```r
-   library(writexl)
-   pheno <- tibble(
-     Patient = character(),
-     Term_1 = character(),
-     Term_2 = character(),
-     Term_3 = character(),
-     Term_4 = character(),
-     Term_5 = character()
-   )
-   write_xlsx(pheno, "Phenotypes.xlsx")
-   ```
-**Note! If you create the xlsx Phenotype files using excel, make sure there are no spaces or invisible characters on column names such as Term_1 ,Term_2, etc.**
-
-3. **Create cram_paths.xlsx:**
-   ```r
-   crams <- tibble(
-     Patient = character(),
-     CRAM_path = character(),
-     BAM_path = character(),
-     Reference = character()
-   )
-   write_xlsx(crams, "cram_paths.xlsx")
-   ```
-
-4. **Create candidates.csv:**
-   ```r
-   candidates <- tibble(
-     GeneName = character(),
-     CHROM = character(),
-     Pos = numeric(),
-     Ref = character(),
-     Alt = character(),
-     Consequence = character(),
-     Notes = character()
-   )
-   write_csv(candidates, "candidates.csv")
-   ```
-
-**Note! When creating the xlsx Phenotype files, make sure there are no spaces or invisible characters on column names such as Term_1 ,Term_2, etc.**
-
-## Step 2: File Structure
-
-After setup, your directory should look like this:
-
-```
-your_project/
-├── annotations/              # Empty - will store master variant file
-├── New_genotypes/            # Empty - will store genotype files
-├── Phenotypes.xlsx          # Empty template
-├── cram_paths.xlsx          # Empty template
-├── candidates.csv           # Empty template
-├── variant_upload_module.R  # Upload module
-├── lolliplot_module.R       # Lollipop plot module
-└── app_v....R            # Main Shiny app
-```
-
-## Step 3: Launch the App
+Wait for that to finish (it may take a few minutes), then install the Bioconductor packages:
 
 ```r
-library(shiny)
-runApp("app_v....R")
+if (!require("BiocManager")) install.packages("BiocManager")
+BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 ```
 
-The app will start with:
-- **0 variants** loaded
-- **0 samples** loaded
-- Empty phenotype table
-- Empty alignment paths table
+If R asks you "Do you want to install from sources?" type `n` and press Enter.
 
-This is expected! You'll populate it through uploads.
+---
 
-## Step 4: Upload Your First Sample
+## Step 4 — Set Up Your App Folder
 
-1. **Navigate to "Variant Upload" tab**
+Inside your `variants-app/app/` folder, create the following two folders manually (right-click → New Folder):
 
-2. **Upload variant file:**
-   - Click "Upload annotated variant TSV/CSV"
-   - Select your annotated variant file
-   - Enter sample name (e.g., "Family_001")
+- `annotations`
+- `New_genotypes`
 
-3. **Follow the workflow:**
-   - **Step 2:** Map columns (CHR, POS, REF, ALT) - auto-detection will suggest columns
-   - **Step 3:** Review the generated variant IDs
-   - **Step 4:** Select annotation and genotype columns
-   - **Step 5:** Click "Process & Save Files"
-
-4. **Refresh the data:**
-   - Click "Refresh Data After Upload" button
-   - You should see a confirmation with variant/sample count
-
-5. **View your data:**
-   - Navigate to "Genetic Variants" tab
-   - Your variants should now appear!
-
-## Expected First Upload Results
-
-After uploading your first sample:
+Your `app/` folder should now look like this:
 
 ```
-annotations/
-└── annotations_fordb.tsv     # Created with all variants from Sample 1
-
-New_genotypes/
-└── Family_001_geno.tsv       # Created with genotypes for Family_001
+app/
+├── annotations/          ← empty for now, will be filled by the app
+├── New_genotypes/        ← empty for now, will be filled by the app
+├── app.R
+├── lolliplot_module.R
+├── variant_upload_module.R
+└── FRESH_DATABASE_SETUP_GUIDE.md
 ```
 
-**Main app will show:**
-- Variants in "Genetic Variants" tab
-- Sample "Family_001" in patient selector
-- Variants can be filtered and analyzed
+You can optionally also add:
 
-## Step 5: Upload Additional Samples
+- `Phenotypes.xlsx` — a spreadsheet with columns `Patient`, `Term_1`, `Term_2` etc. for storing patient phenotype information. If this file is absent the app will create an empty phenotype table automatically.
+- `cram_paths.xlsx` — a spreadsheet with columns `Patient` and `CRAM_path` if you want to store alignment file paths. Optional.
 
-For each additional sample:
+---
 
-1. Go to "Variant Upload" tab
-2. Upload new variant file with different sample name
-3. Follow same workflow
-4. Click "Refresh Data After Upload"
+## Step 5 — Try the App with the Test Data
 
-**What happens:**
-- New variants are **appended** to `annotations/annotations_fordb.tsv`
-- Duplicate variants are merged (keeping most severe consequence)
-- New genotype file created: `New_genotypes/{SampleName}_geno.tsv`
-- Patient selector updates with new sample
+Before loading your own data, we recommend trying the included test data to make sure everything is working.
 
-## Populating Phenotype Data
+Copy the test files into the right locations:
 
-After uploading samples, you can add phenotype information:
+| Copy this file | To this location |
+|---|---|
+| `test_data/example_variants.tsv` | `app/annotations/annotations_fordb.tsv` |
+| `test_data/example_genotypes_geno.tsv` | `app/New_genotypes/` |
+| `test_data/Phenotypes.xlsx` | `app/` |
+| `test_data/cram_paths.xlsx` | `app/` |
 
-1. Open `Phenotypes.xlsx` in Excel or R
-2. Add rows for each patient:
-   ```
-   Patient    | Term_1              | Term_2            | Term_3
-   -----------|---------------------|-------------------|--------
-   Family_001 | Immunodeficiency    | Recurrent infections | 
-   Family_002 | Autoinflammation    | Periodic fever    |
-   ```
-3. Save the file
-4. Restart the app or refresh
-5. Phenotypes will appear in the "Phenotypes" tab
+Then launch the app (see Step 6 below).
 
-## Populating Alignment Paths
+---
 
-If you have CRAM/BAM files:
+## Step 6 — Launch the App
 
-1. Open `cram_paths.xlsx`
-2. Add file paths:
-   ```
-   Patient    | CRAM_path                          | Reference
-   -----------|------------------------------------|-------------
-   Family_001 | /path/to/family001.cram           | GRCh38
-   Family_002 | /path/to/family002.cram           | GRCh38
-   ```
-3. Save and restart app
-4. Paths will appear in "Alignment paths" tab
+1. In RStudio, go to **File → Open File**
+2. Navigate to your `variants-app/app/` folder and open `app.R`
+3. In the top right corner of the script editor, click the **Run App** button (green play button)
+4. The app will open in a new window or in your browser
+
+> **Tip:** If you see a "Run App" dropdown arrow, choose **Run External** to open the app in your browser, which gives more space to work with.
+
+---
+
+## Step 7 — Load Your Own Variant Data
+
+Once the app is running, go to the **Variant Upload** tab.
+
+**Step 7a — Upload your file**
+- Click **Browse** and select your annotated TSV or CSV file
+- Enter a name for the sample or family in the **Sample/Family Name** field (e.g. `Family_001`). This name will be used to label genotype columns, so keep it short and without spaces.
+
+**Step 7b — Map your columns**
+- The app will auto-detect common column names for chromosome, position, reference allele, and alternate allele
+- Check that the dropdowns are correct and adjust if needed
+- Select which columns are **annotation columns** (variant-level information like gene name, consequence, CADD score) and which are **genotype columns** (sample-specific information like zygosity or read depth)
+
+**Step 7c — Process and refresh**
+- Click **Process & Save Files**
+- Go back to the main app and click **Refresh Data After Upload**
+- Your variants will now appear in the Genetic Variants tab
+
+Repeat this process for each sample or family you want to add.
+
+---
+
+## Preparing Your Variant Files
+
+If you are starting from raw VCF files, you will need to annotate them before uploading. The recommended pipeline uses **Ensembl VEP** followed by **BCFtools** to convert to TSV.
+
+### What is VEP?
+
+Ensembl VEP (Variant Effect Predictor) takes a VCF file and adds biological annotations to each variant — things like which gene it affects, what the predicted consequence is (missense, frameshift, etc.), population allele frequencies from gnomAD, and pathogenicity scores like CADD.
+
+### Option A — Run VEP online (easiest, no installation required)
+
+For small VCF files (< a few thousand variants):
+
+1. Go to [ensembl.org/Tools/VEP](https://www.ensembl.org/Tools/VEP)
+2. Upload your VCF file
+3. Under **Plugins**, enable: CADD, PolyPhen, SIFT
+4. Under **Frequencies**, enable gnomAD exomes or genomes
+5. Run the job and download the results as a VCF
+
+### Option B — Run VEP on the command line (recommended for large files)
+
+Install VEP following the [official instructions](https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html), then run:
+
+```bash
+vep \
+  --input_file your_variants.vcf \
+  --output_file your_variants_annotated.vcf \
+  --vcf \
+  --cache \
+  --assembly GRCh37 \
+  --plugin CADD,whole_genome_SNVs.tsv.gz \
+  --plugin PolyPhen \
+  --af_gnomad \
+  --hgvs \
+  --symbol \
+  --numbers \
+  --fields "SYMBOL,Consequence,HGVSc,HGVSp,Amino_acids,Protein_position,CADD_PHRED,gnomAD_AF,PolyPhen,SIFT,Existing_variation,CLIN_SIG"
+```
+
+See the `preprocessing/` folder in this repository for the exact commands and plugin versions used to generate the test data files.
+
+### Converting the annotated VCF to TSV
+
+Once you have an annotated VCF, use BCFtools to extract the fields into a TSV:
+
+```bash
+bcftools +split-vep your_variants_annotated.vcf \
+  -f '%CHROM\t%POS\t%REF\t%ALT\t%CSQ\n' \
+  -d \
+  -A tab \
+  > your_variants.tsv
+```
+
+Add a header line matching your field names and the file is ready to upload into the app.
+
+> **Note:** Intronic variants and duplicates can be filtered out before uploading to reduce file size. For large cohorts this makes a significant difference to app performance.
+
+---
 
 ## Troubleshooting
 
-### Error: "File does not exist"
-- **Solution:** This is normal for a fresh database! The app is designed to start with no data.
+**The app won't launch / I see an error about a missing package**
+Run `install.packages("packagename")` in the RStudio console, replacing `packagename` with whatever is mentioned in the error.
 
-### No variants showing after upload
-- **Solution:** Click "Refresh Data After Upload" button in the Variant Upload tab
+**My variants aren't showing up after upload**
+Make sure you clicked **Refresh Data After Upload** on the Variant Upload tab after processing.
 
-### Patient selector is empty
-- **Solution:** Upload at least one sample, then click "Refresh Data After Upload"
+**The Lollipop Plot tab is blank**
+This tab requires an internet connection to fetch protein domain data from Ensembl. Check your connection and try selecting a gene from the dropdown.
 
-### Upload fails
-- **Check:** 
-  - File has CHR, POS, REF, ALT columns (or similar)
-  - File is tab-delimited (.tsv) or comma-delimited (.csv)
-  - Sample name is provided
+**I accidentally uploaded the wrong file**
+Delete the file from `app/annotations/annotations_fordb.tsv` and/or the relevant file in `app/New_genotypes/`, then restart the app and re-upload.
 
-## Key Differences from Pre-Loaded Database
+**Column names weren't detected correctly**
+Use the dropdown menus in Step 2 of the upload tab to manually map your columns. The app accepts most common naming conventions but your file may use a different format.
 
-| Feature | Fresh Database | Pre-Loaded Database |
-|---------|----------------|---------------------|
-| Initial variants | 0 | From existing annotations_fordb_4.tsv |
-| Initial samples | 0 | From existing New_genotypes/*.tsv files |
-| Annotation file | Created on first upload | Already exists |
-| Genotype files | Created per upload | Already exist |
-| Phenotype data | Empty template | Pre-populated |
-| Setup required | Yes (directories + templates) | No |
+---
 
-## Workflow Summary
+## Getting Help
 
-```
-Fresh Setup → Launch App (0 variants) → Upload Sample 1 → Refresh Data → 
-View Variants → Upload Sample 2 → Refresh Data → More variants! → 
-Add Phenotypes → Analyze!
-```
-
-## File Growth Over Time
-
-As you add samples, your database grows:
-
-**After Sample 1:**
-```
-annotations/annotations_fordb.tsv:  15,000 variants
-New_genotypes/Family_001_geno.tsv:  15,000 variants
-```
-
-**After Sample 2:**
-```
-annotations/annotations_fordb.tsv:  28,500 variants (some overlap removed)
-New_genotypes/Family_001_geno.tsv:  15,000 variants
-New_genotypes/Family_002_geno.tsv:  14,800 variants
-```
-
-**After Sample 3:**
-```
-annotations/annotations_fordb.tsv:  41,200 variants
-New_genotypes/Family_001_geno.tsv:  15,000 variants
-New_genotypes/Family_002_geno.tsv:  14,800 variants
-New_genotypes/Family_003_geno.tsv:  13,900 variants
-```
-
-The annotation file grows as unique variants are added, while each sample maintains its own genotype file.
-
-## Best Practices
-
-1. **Consistent naming:** Use clear sample names (Family_001, Patient_ABC, etc.)
-2. **Backup regularly:** Keep copies of annotations/ and New_genotypes/ directories
-3. **Document uploads:** Keep a log of which samples were uploaded when
-4. **Update phenotypes:** Add phenotype data as you learn more about patients
-5. **Clean data:** Use consistent consequence annotations in your input files
-
-## Next Steps
-
-Once you have data uploaded:
-- Explore the "Genetic Variants" tab for filtering and analysis
-- Use "Joined Patients Table" to compare variants across families
-- Use "Common Genes by Patient" to find shared genes
-- Create lollipop plots for genes of interest
-- Store interesting variants in "Candidate Variants"
-
-Your database will grow with each upload and become a valuable resource for variant analysis!
+If you encounter an issue not covered here, please open an issue on the GitHub repository and include a description of the error and, if possible, the first few rows of your input file (with any sensitive information removed).
