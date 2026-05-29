@@ -37,10 +37,10 @@ BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 
 ```bash
 git clone "link --- still a place holder here"
-cd cooper-lab-variants
+cd whateverfolder
 ```
 
-Or download zip file from latest release
+Or download zip file from latest release. See FRESH_DATABASE_SETUP_GUIDE.md under the app subfolder for more guidance.
 
 ---
 
@@ -125,7 +125,7 @@ The upload module accepts TSV or CSV files with the following required columns (
 
 All other columns can be mapped interactively as annotation columns (variant-level) or genotype columns (sample-level). Genotype columns are namespaced per sample as `SampleName.columnname`.
 
-Common VEP/Ensembl output field names (e.g. `SYMBOL`, `Consequence`, `CADD_PHRED`, `CLNSIG`, `Amino_acids`, `Protein_position`) are mapped automatically.
+Common VEP/Ensembl output field names (e.g. `SYMBOL`, `Consequence`, `CADD_PHRED`, `CLNSIG`, `Amino_acids`, `Protein_position`) are mapped automatically and are recommended for full app functionality.
 
 ---
 
