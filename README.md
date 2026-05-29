@@ -36,9 +36,11 @@ BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 ## Installation
 
 ```bash
-git clone https://github.com/your-org/cooper-lab-variants.git
+git clone "link --- still a place holder here"
 cd cooper-lab-variants
 ```
+
+Or download zip file from latest release
 
 ---
 
@@ -54,11 +56,17 @@ cooper-lab-variants/
 │
 └── test_data/
     ├── README.md                    # How to use the test files and data preprocessing
-    ├── example_variants.tsv         # Annotated variants from Harvard PGP public WGS data (pgp.med.harvard.edu); see preprocessing/ for pipeline scripts
-    ├── example_genotypes_geno.tsv   # Example genotype file
+    ├── example_annotation/
+    |   |── annotations_fordb.tsv    # Annotated variants from Harvard PGP public WGS data (pgp.med.harvard.edu); see preprocessing/ for pipeline scripts (without genotype information)
+    ├── example_genotypes/           # Example of what your input genotype files for the same variants in annotated variants will look like
+    |   |── hu1C1368_geno.tsv
+    |       .....
+    ├── example_tsvs                 # Example of annotated TSV files. Your own files to be uploaded should look a bit like these
+    |   |── hu1C1368.tsv
+    |       .....
     ├── Phenotypes.xlsx              # Example phenotype table
     ├── cram_paths.xlsx              # Example CRAM path table
-    └── example_gene_list.csv        # Example gene list for filtering
+    └── example_gene_list.csv        # Example gene list for filtering (IUIS-IEI list)
 ```
 
 The following directories and files are created automatically at runtime and are **not** tracked by git:
@@ -77,7 +85,7 @@ app/col_state.json      # Saved column layout preferences
 ### 1. Fresh setup (no existing data)
 
 ```r
-setwd("app/")
+setwd("app/")   ## Navigate to the folder where you saved the app files
 shiny::runApp()
 ```
 
@@ -87,14 +95,10 @@ Navigate to the **Variant Upload** tab and follow the steps to upload your first
 
 Copy the test files into the expected locations before launching:
 
-```bash
-# From the repo root
-mkdir -p app/annotations app/New_genotypes
-
-cp test_data/example_variants.tsv        app/annotations/annotations_fordb.tsv
-cp test_data/example_genotypes_geno.tsv  app/New_genotypes/
-cp test_data/Phenotypes.xlsx             app/
-cp test_data/cram_paths.xlsx             app/
+cp test_data/example_annotation/annotations_fordb.tsv  to    app/annotations/annotations_fordb.tsv
+cp test_data/example_genotypes/ to app/New_genotypes/
+cp test_data/Phenotypes.xlsx    to         app/
+cp test_data/cram_paths.xlsx    to         app/
 ```
 
 Then launch:
