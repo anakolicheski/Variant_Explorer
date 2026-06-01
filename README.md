@@ -1,6 +1,7 @@
 # Genetic Variant Explorer
 
 A Shiny web application for interactive browsing, filtering, and curation of annotated genetic variant data across multi-sample/family cohorts.
+For detailed instructions on download installation and setting up your own database, or using the test data, please see the FRESH_DATABASE_SETUP.md file under the app folder.
 
 ---
 
