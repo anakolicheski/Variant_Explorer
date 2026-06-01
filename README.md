@@ -56,12 +56,12 @@ cooper-lab-variants/
 │
 └── test_data/
     ├── README.md                    # How to use the test files and data preprocessing
-    ├── example_annotation/
+    ├── annotations/
     |   |── annotations_fordb.tsv    # Annotated variants from Harvard PGP public WGS data (pgp.med.harvard.edu); see preprocessing/ for pipeline scripts (without genotype information)
-    ├── example_genotypes/           # Example of what your input genotype files for the same variants in annotated variants will look like
+    ├── New_genotypes/           # Example of what your input genotype files for the same variants in annotated variants will look like
     |   |── hu1C1368_geno.tsv
     |       .....
-    ├── example_tsvs                 # Example of annotated TSV files. Your own files to be uploaded should look a bit like these
+    ├── example_tsvs                 # Example of annotated TSV files. Your own files to be uploaded should look a bit like these. You can also test upload these files
     |   |── hu1C1368.tsv
     |       .....
     ├── Phenotypes.xlsx              # Example phenotype table
