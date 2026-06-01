@@ -533,14 +533,14 @@ server <- function(input, output, session) {
       pheno_rv()[, intersect(c("Term_1","Term_2","Term_3","Term_4","Term_5"), names(pheno_rv()))]  ##add more terms if needed
     ))))
     updateSelectInput(session, "PhenotypeTerm",
-                      choices = all_terms, selected = selected_phenotype_terms())
+                      choices = all_terms, selected = isolate(selected_phenotype_terms()))
   })
 
   observe({
     req(input$main_tabs %in% c("Common Variants", "Common Genes by Patient Table"))
     updateSelectInput(session, "Patient",
                       choices  = if (length(names(Genotypes)) > 0) names(Genotypes) else character(0),
-                      selected = selected_patients())
+                      selected = isolate(selected_patients()))
   })
 
   observeEvent(input$PhenotypeTerm, {

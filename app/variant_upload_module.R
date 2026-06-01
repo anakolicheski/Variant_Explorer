@@ -88,7 +88,7 @@ ensure_numeric <- function(df, numeric_cols) {
   df
 }
 
-remove_duplicates_by_severity <- function(df, consequence_col = "Consequence_VEP") {
+remove_duplicates_by_severity <- function(df, consequence_col = "Consequence") {
   if (!consequence_col %in% names(df)) {
     return(df[!duplicated(df$ID), ])
   }
@@ -391,7 +391,7 @@ variantUploadServer <- function(id, anno_dir = "annotations", geno_dir = "New_ge
           "Gene" = "GeneName",
           
           # Consequence columns
-          "Consequence" = "Consequence_VEP",
+          "Consequence" = "Consequence",
           
           # Frequency columns
           "gnomAD AF" = "gnomADe_AF",
@@ -476,8 +476,8 @@ variantUploadServer <- function(id, anno_dir = "annotations", geno_dir = "New_ge
         anno <- ensure_numeric(anno, num_cols)
         
         # Clean consequences
-        if ("Consequence_VEP" %in% names(anno)) {
-          anno$Consequence_VEP <- clean_consequence_column(anno$Consequence_VEP)
+        if ("Consequence" %in% names(anno)) {
+          anno$Consequence <- clean_consequence_column(anno$Consequence)
         }
         
         # Remove duplicates
