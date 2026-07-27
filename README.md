@@ -38,8 +38,8 @@ BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 ## Installation
 
 ```bash
-git clone <TODO: add repo URL here>
-cd <repo-folder-name>
+git clone "link --- still a place holder here"
+cd whateverfolder
 ```
 
 Or download zip file from latest release. See FRESH_DATABASE_SETUP_GUIDE.md under the app subfolder for more guidance.
