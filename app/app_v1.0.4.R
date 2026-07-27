@@ -210,6 +210,16 @@ ui <- fluidPage(
 
         # ── Common Genes ─────────────────────────────────────────────────────
         tabPanel("Common Genes by Patient Table",
+          fluidRow(
+            column(9, plotOutput("CommonGenesPlot", height = "420px")),
+            column(3,
+              br(),
+              sliderInput("top_genes_n", "Top N genes to show:",
+                          min = 5, max = 50, value = 20, step = 5),
+              helpText("Bars show how many of the selected patients carry a variant in each gene.")
+            )
+          ),
+          br(),
           DT::DTOutput("Joined_Gene_Table"),
           downloadButton("downloadGeneTable", "Download Gene Table")
         ),
@@ -361,6 +371,61 @@ server <- function(input, output, session) {
   selected_phenotype_terms <- reactiveVal(character(0))
   selected_patients        <- reactiveVal(character(0))
 
+  # Per-tab variant filter state — each of the three filter tabs (Genetic
+  # Variants, Common Variants, Common Genes) keeps independent filter values
+  # that are saved when inputs change and restored when switching back to that tab.
+  saved_filters <- reactiveValues(gv = NULL, cv = NULL, cg = NULL)
+
+  get_tab_key <- function(tab) switch(tab,
+    "Genetic Variants"              = "gv",
+    "Common Variants"               = "cv",
+    "Common Genes by Patient Table" = "cg",
+    NULL
+  )
+
+  # Capture current filter state; debounced so it reads AFTER inputs have
+  # settled following a tab switch (the sidebar re-renders with defaults
+  # before the restore observer fires — 600ms clears both)
+  current_filter_state_raw <- reactive({
+    list(
+      tab               = input$main_tabs,
+      Variant_Type      = input$Variant_Type,
+      cadd_filter       = input$cadd_filter,
+      gnomad_af_filter  = input$gnomad_af_filter,
+      gnomad_include_na = input$gnomad_include_na,
+      gnomad_novel_only = input$gnomad_novel_only,
+      gnomad_af_col     = input$gnomad_af_col
+    )
+  })
+  current_filter_state <- debounce(current_filter_state_raw, 600)
+
+  observe({
+    s   <- current_filter_state()
+    key <- get_tab_key(s$tab)
+    if (is.null(key)) return()
+    saved_filters[[key]] <- s[setdiff(names(s), "tab")]
+  })
+
+  # Restore saved filter state when switching to a filter tab
+  observeEvent(input$main_tabs, {
+    key <- get_tab_key(input$main_tabs)
+    if (is.null(key)) return()
+    f <- saved_filters[[key]]
+    if (is.null(f)) return()
+    if (!is.null(f$Variant_Type))
+      updateCheckboxGroupInput(session, "Variant_Type",      selected = f$Variant_Type)
+    if (!is.null(f$cadd_filter))
+      updateSliderInput(session,        "cadd_filter",        value    = f$cadd_filter)
+    if (!is.null(f$gnomad_af_filter))
+      updateSliderInput(session,        "gnomad_af_filter",   value    = f$gnomad_af_filter)
+    if (!is.null(f$gnomad_include_na))
+      updateCheckboxInput(session,      "gnomad_include_na",  value    = f$gnomad_include_na)
+    if (!is.null(f$gnomad_novel_only))
+      updateCheckboxInput(session,      "gnomad_novel_only",  value    = f$gnomad_novel_only)
+    if (!is.null(f$gnomad_af_col))
+      updateSelectizeInput(session,     "gnomad_af_col",      selected = f$gnomad_af_col)
+  })
+
   # ── Column state: two layers ──────────────────────────────────────────────
   # col_state        – in-memory, updated live as user drags/hides (session only)
   # col_state_saved  – written to disk only when user clicks "Save Layout"
@@ -429,13 +494,64 @@ server <- function(input, output, session) {
         helpText("Novel variants (NA) have no frequency in gnomAD — often de novo or population-specific.")
       )
 
-    } else if (tab %in% c("Common Variants", "Common Genes by Patient Table")) {
+    } else if (tab == "Common Variants") {
       tagList(
         selectInput("PhenotypeTerm", "Filter by Phenotype Term:",
                     choices = NULL, selected = NULL, multiple = TRUE),
         selectInput("Patient", "Filter by Sample/Family:",
                     choices  = if (length(names(Genotypes)) > 0) names(Genotypes) else character(0),
-                    multiple = TRUE)
+                    multiple = TRUE),
+        hr(),
+        h5("Variant Filters", style = "margin-bottom:4px;"),
+        helpText("Independent of Genetic Variants and Common Genes filters."),
+        fileInput("geneListFile", "Upload Gene List", accept = c(".csv", ".tsv")),
+        uiOutput("variant_type_filter"),
+        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
+                    min = 0, max = 50, value = c(0, 50), step = 1),
+        helpText("PHRED scores > 20 are generally considered deleterious"),
+        hr(),
+        h5("gnomAD Population Frequency", style = "margin-bottom:4px;"),
+        uiOutput("gnomad_col_selector"),
+        sliderInput("gnomad_af_filter",
+                    label    = "Max allele frequency:",
+                    min      = 0, max = 1, value = 1, step = 0.001),
+        checkboxInput("gnomad_include_na",
+                      label = "Include variants absent from gnomAD (NA)",
+                      value = TRUE),
+        checkboxInput("gnomad_novel_only",
+                      label = "Show ONLY novel variants (absent from gnomAD)",
+                      value = FALSE),
+        helpText("Novel variants have no frequency in gnomAD — often de novo or population-specific.")
+      )
+
+    } else if (tab == "Common Genes by Patient Table") {
+      tagList(
+        selectInput("PhenotypeTerm", "Filter by Phenotype Term:",
+                    choices = NULL, selected = NULL, multiple = TRUE),
+        selectInput("Patient", "Filter by Sample/Family:",
+                    choices  = if (length(names(Genotypes)) > 0) names(Genotypes) else character(0),
+                    multiple = TRUE),
+        hr(),
+        h5("Variant Filters", style = "margin-bottom:4px;"),
+        helpText("Independent of Genetic Variants and Common Variants filters."),
+        fileInput("geneListFile", "Upload Gene List", accept = c(".csv", ".tsv")),
+        uiOutput("variant_type_filter"),
+        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
+                    min = 0, max = 50, value = c(0, 50), step = 1),
+        helpText("PHRED scores > 20 are generally considered deleterious"),
+        hr(),
+        h5("gnomAD Population Frequency", style = "margin-bottom:4px;"),
+        uiOutput("gnomad_col_selector"),
+        sliderInput("gnomad_af_filter",
+                    label    = "Max allele frequency:",
+                    min      = 0, max = 1, value = 1, step = 0.001),
+        checkboxInput("gnomad_include_na",
+                      label = "Include variants absent from gnomAD (NA)",
+                      value = TRUE),
+        checkboxInput("gnomad_novel_only",
+                      label = "Show ONLY novel variants (absent from gnomAD)",
+                      value = FALSE),
+        helpText("Novel variants have no frequency in gnomAD — often de novo or population-specific.")
       )
 
     } else if (tab == "Phenotypes") {
@@ -1143,8 +1259,8 @@ server <- function(input, output, session) {
     req(input$Patient)
     genotype_tables <- map(input$Patient, ~ get(.x) %>% mutate_all(as.character))
     joined_tables   <- map(genotype_tables,
-                           ~ full_join(.x, variants(), by = "ID",
-                                       suffix = c("_genotypes", "_variants")))
+                           ~ inner_join(.x, Variant_type_reac(), by = "ID",
+                                        suffix = c("_genotypes", "_variants")))
     joined_table    <- bind_rows(joined_tables) %>%
       filter(if_any(everything(), ~ str_detect(as.character(.), "Het|Hom.Alt")))
 
@@ -1183,7 +1299,7 @@ server <- function(input, output, session) {
 
     all_zyg <- purrr::reduce(zygosity_tables, inner_join, by = "ID")
 
-    result <- variants() %>%
+    result <- Variant_type_reac() %>%
       mutate_all(as.character) %>%
       inner_join(all_zyg, by = "ID")
 
@@ -1210,23 +1326,33 @@ server <- function(input, output, session) {
   })
 
   # ── Joined_Gene_Table ─────────────────────────────────────────────────────
-  Joined_Gene_Table <- reactive({
+  # Shared computation: build the big joined table once, used by both the
+  # gene summary chart and the full Joined_Gene_Table DT
+  gene_summary_raw <- reactive({
     req(input$Patient)
     genotype_forgene_tables <- map(input$Patient, ~ {
       tbl <- get(.x) %>% mutate(Patient = .x) %>% mutate_all(as.character)
       tbl
     })
     joined_gene_table <- map(genotype_forgene_tables,
-                             ~ left_join(.x, variants(), by = "ID",
+                             ~ left_join(.x, Variant_type_reac(), by = "ID",
                                          suffix = c("_genotypes", "_variants")))
     big_joined <- bind_rows(joined_gene_table) %>%
       filter(if_any(everything(), ~ str_detect(as.character(.), "Het|Hom.Alt")))
 
-    big_joined %>%
+    summary <- big_joined %>%
       group_by(GeneName) %>%
       summarise(Num_Patients = n_distinct(Patient), .groups = "drop") %>%
+      arrange(desc(Num_Patients), GeneName)
+
+    list(summary = summary, big_joined = big_joined)
+  })
+
+  Joined_Gene_Table <- reactive({
+    d <- gene_summary_raw()
+    d$summary %>%
       filter(Num_Patients > 1) %>%
-      left_join(big_joined, by = "GeneName")
+      left_join(d$big_joined, by = "GeneName")
   })
 
   # ── Matching_ID_Table ─────────────────────────────────────────────────────
@@ -1296,6 +1422,61 @@ server <- function(input, output, session) {
     req(input$Patient)
     df <- Joined_Gene_Table()
     make_dt(df, "Joined_Gene_Table", filter = "top")
+  })
+
+  output$CommonGenesPlot <- renderPlot({
+    req(input$Patient)
+    d <- gene_summary_raw()
+    summary_df <- d$summary
+    if (nrow(summary_df) == 0) return(NULL)
+
+    n_patients <- length(input$Patient)
+    top_n      <- min(input$top_genes_n %||% 20, nrow(summary_df))
+
+    # Use arrange+head instead of slice_max for broader dplyr compatibility
+    plot_df <- summary_df %>%
+      arrange(desc(Num_Patients), GeneName) %>%
+      head(top_n) %>%
+      arrange(Num_Patients, GeneName) %>%          # ascending so top is at top
+      mutate(GeneName = factor(GeneName, levels = GeneName))
+
+    # If no genes shared by 2+ patients, show all with a note
+    max_shared <- max(plot_df$Num_Patients, na.rm = TRUE)
+    subtitle_txt <- if (max_shared > 1) {
+      sprintf("%d patients selected | %d genes shared by 2+ patients",
+              n_patients, sum(summary_df$Num_Patients > 1))
+    } else {
+      sprintf("%d patients selected | no genes shared by 2+ patients (showing all)",
+              n_patients)
+    }
+
+    ggplot(plot_df, aes(x = Num_Patients, y = GeneName, fill = Num_Patients)) +
+      geom_col(width = 0.7, colour = "white", linewidth = 0.3) +
+      geom_text(aes(label = Num_Patients),
+                hjust = -0.25, size = 3.5, colour = "grey30") +
+      scale_fill_gradient(low = "#a8d5e2", high = "#1a6b8a",
+                          limits = c(1, max(n_patients, 2)),
+                          name   = "Patients") +
+      scale_x_continuous(
+        breaks = seq(1, n_patients),
+        limits = c(0, n_patients + 0.8),
+        expand = c(0, 0)
+      ) +
+      labs(
+        title    = sprintf("Top %d genes by number of patients with a variant", top_n),
+        subtitle = subtitle_txt,
+        x        = "Number of patients with a variant in this gene",
+        y        = NULL
+      ) +
+      theme_minimal(base_size = 13) +
+      theme(
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor   = element_blank(),
+        axis.text.y        = element_text(size = 11, face = "bold"),
+        plot.title         = element_text(size = 14, face = "bold"),
+        plot.subtitle      = element_text(size = 11, colour = "grey50"),
+        legend.position    = "none"
+      )
   })
 
   # ── Candidate Variants ────────────────────────────────────────────────────
