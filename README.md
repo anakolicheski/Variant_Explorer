@@ -19,15 +19,16 @@ For detailed instructions on download installation and setting up your own datab
 
 ## Requirements
 
-R (≥ 4.1) with the following packages:
+R (≥ 4.0) with the following packages:
 
 ```r
 install.packages(c(
-  "shiny", "shinythemes", "tidyverse", "readxl", "writexl",
-  "DT", "jsonlite", "httr", "purrr", "dplyr", "readr", "stringr"
+  "shiny", "shinythemes", "bslib", "shinyWidgets", "tidyverse",
+  "readxl", "writexl", "DT", "jsonlite", "httr", "purrr",
+  "dplyr", "readr", "stringr"
 ))
 
-# Bioconductor packages
+# Bioconductor packages (installed separately via BiocManager)
 if (!require("BiocManager")) install.packages("BiocManager")
 BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 ```
@@ -37,8 +38,8 @@ BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 ## Installation
 
 ```bash
-git clone "link --- still a place holder here"
-cd whateverfolder
+git clone <TODO: add repo URL here>
+cd <repo-folder-name>
 ```
 
 Or download zip file from latest release. See FRESH_DATABASE_SETUP_GUIDE.md under the app subfolder for more guidance.
@@ -96,10 +97,11 @@ Navigate to the **Variant Upload** tab and follow the steps to upload your first
 
 Copy the test files into the expected locations before launching:
 
-cp test_data/example_annotation/annotations_fordb.tsv  to    app/annotations/annotations_fordb.tsv
-cp test_data/example_genotypes/ to app/New_genotypes/
-cp test_data/Phenotypes.xlsx    to         app/
-cp test_data/cram_paths.xlsx    to         app/
+```bash
+cp test_data/annotations/annotations_fordb.tsv   app/annotations/annotations_fordb.tsv
+cp test_data/New_genotypes/*                     app/New_genotypes/
+cp test_data/Phenotypes.xlsx                      app/
+cp test_data/cram_paths.xlsx                      app/
 ```
 
 Then launch:

@@ -7,6 +7,7 @@ This guide walks you through setting up and running the app from scratch. No pri
 ## What You Will Need
 
 - A computer running Windows, Mac, or Linux
+- **R version 4.0 or higher**
 - Your annotated variant files (TSV format) — see [Preparing Your Variant Files](#preparing-your-variant-files) below if you are starting from VCF files
 - About 20–30 minutes for a first-time setup
 
@@ -50,23 +51,24 @@ You need two free programs: **R** (the programming language) and **RStudio** (a 
 
 Packages are add-ons that give R extra functionality. You only need to do this once.
 
-In RStudio, find the **Console** panel (bottom left, shows a `>` prompt) and paste in the following, then press Enter:
+Most of the required packages come from CRAN, R's standard package repository. In RStudio, find the **Console** panel (bottom left, shows a `>` prompt) and paste in the following, then press Enter:
 
 ```r
 install.packages(c(
-  "shiny", "shinythemes", "tidyverse", "readxl", "writexl",
-  "DT", "jsonlite", "httr", "purrr", "dplyr", "readr", "stringr"
+  "shiny", "shinythemes", "bslib", "shinyWidgets", "tidyverse",
+  "readxl", "writexl", "DT", "jsonlite", "httr", "purrr",
+  "dplyr", "readr", "stringr"
 ))
 ```
 
-Wait for that to finish (it may take a few minutes), then install the Bioconductor packages:
+Wait for that to finish (it may take a few minutes). A few remaining packages come from **Bioconductor**, a separate repository used for genomics-specific tools, and need to be installed a different way:
 
 ```r
 if (!require("BiocManager")) install.packages("BiocManager")
 BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 ```
 
-If R asks you "Do you want to install from sources?" type `n` and press Enter.
+If R asks you "Do you want to install from sources the package which needs compilation?" type `n` and press Enter.
 
 ---
 
