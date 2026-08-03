@@ -1,0 +1,30 @@
+#!/bin/bash
+
+##Use BCFtools to merge variant genotype and VEP annotations into a single TSV file per sample.  
+
+vcf_folder="path to annotated VCF files"
+output_folder="path to merged TSV files"
+
+for vcf in "$vcf_folder"/*.vcf.gz "$vcf_folder"/*.vcf; do
+
+filename=$(basename "$vcf")
+ID=${filename%_*} 
+
+#extract annotations
+bcftools +split-vep -d "$vcf" \
+-f '%CHROM\t%POS\t%ID\t%REF\t%ALT\t%Allele\t%Consequence\t%IMPACT\t%SYMBOL\t%Gene\t%Feature_type\t%Feature\t%BIOTYPE\t%EXON\t%INTRON\t%HGVSc\t%HGVSp\t%cDNA_position\t%CDS_position\t%Protein_position\t%Amino_acids\t%Codons\t%Existing_variation\t%DISTANCE\t%STRAND\t%FLAGS\t%SYMBOL_SOURCE\t%HGNC_ID\t%SOURCE\t%PolyPhen\t%HGVSg\t%CADD_PHRED\t%CADD_RAW\t%gnomadg\t%gnomadg_AF\t%ClinVar\t%ClinVar_CLNSIG\t%ClinVar_CLNREVSTAT\t%ClinVar_CLNDN\n' \
+> vep_annotations.tsv
+
+#extract genotype 
+bcftools query -f '%POS\t%ID\t%REF\t%ALT\t%INFO\t[%GT]\t[%DP]\n' "$vcf_folder/*.vcf" \
+> genotype_data.tsv
+
+#combine genotype and annotations
+paste vep_annotations.tsv genotype_data.tsv > combined.tsv
+
+echo -e "%CHROM\tPOS\tID\tREF\tALT\tAllele\tConsequence\tIMPACT\tSYMBOL\tGene\tFeature_type\tFeature\tBIOTYPE\tEXON\tINTRON\tHGVSc\tHGVSp\tcDNA_position\tCDS_position\tProtein_position\tAmino_acids\tCodons\tExisting_variation\tDISTANCE\tSTRAND\tFLAGS\tSYMBOL_SOURCE\tHGNC_ID\tSOURCE\tPolyPhen\tHGVSg\tCADD_PHRED\tCADD_RAW\tgnomadg\tgnomadg_AF\tClinVar\tClinVar_CLNSIG\tClinVar_CLNREVSTAT\tClinVar_CLNDN\tGT\tDP" > header.tsv
+cat header.tsv combined.tsv > "$output_folder/${ID}.tsv"
+
+rm vep_annotations.tsv genotype_data.tsv combined.tsv header.tsv
+
+done
