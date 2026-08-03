@@ -1,0 +1,30 @@
+#!/bin/bash
+
+##Remove all intronic variants using VEP Consequence annotations. 
+##This optional step reduces the data to a manageable size for database demonstration purposes.
+
+input_folder="path to unfiltered TSV files"
+output_folder="path to filtered TSV files"
+
+for tsv in "$input_folder"/*.tsv; do
+
+    filename=$(basename "$tsv")
+    ID=${filename%.*}
+
+    awk -F'\t' '
+    BEGIN{
+    bad["downstream_gene_variant"]
+    bad["upstream_gene_variant"]
+    bad["intergenic_variant"]
+    bad["intron_variant"]
+    bad["intron_variant&non_coding_transcript_variant"]
+    bad["intron_variant&NMD_transcript_variant"]
+    bad["non_coding_transcript_exon_variant"]
+    bad["splice_region_variant&intron_variant"]
+    bad["splice_region_variant&intron_variant&non_coding_transcript_variant"]
+    bad["splice_region_variant&intron_variant&NMD_transcript_variant"]
+    }
+    NR==1 || !($7 in bad)
+    ' "$tsv" > "$output_folder/${ID}_filtered.tsv"
+
+done
