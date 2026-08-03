@@ -1,0 +1,32 @@
+#!/bin/bash
+
+input_folder="path to unannotated VCFs"
+output_dir="path to annotated VCFs"
+cache_dir="path to VEP cache directory"
+data_dir="path to reference files"
+
+for vcf in "$input_folder"/*.vcf.gz "$input_folder"/*.vcf; do #VCF files can be zipped (.vcf.gz) or unzipped (.vcf) 
+
+filename=$(basename "$vcf")
+ID=${filename%_*} 
+
+    vep --dir_cache "$dir_cache" \
+        -i "$vcf" \
+        --cache \
+        --offline \
+        --vcf\
+        --assembly GRCh37 \
+        --grch37 \
+        --custom file= "$data_dir/gnomad.genomes.r2.1.1.sites.vcf.bgz",short_name=gnomadg,fields=AF,format=vcf \
+        --hgvsg \
+        --symbol \
+        --polyphen b \
+        --species homo_sapiens \
+        --custom file="$data_dir/clinvar.vcf.gz",short_name=ClinVar,format=vcf,type=exact,coords=0,fields=CLNSIG%CLNREVSTAT%CLNDN \
+        --plugin CADD,snv="$data_dir/whole_genome_SNVs.tsv.gz",indels="$data_dir/gnomad.genomes-exomes.r4.0.indel.tsv.gz" \
+        --species homo_sapiens \
+        --fasta "$data_dir/GRCh37.primary_assembly.genome.fa" \
+        --force_overwrite \
+        -o "$output_dir/${ID}_annotated.vcf"
+
+done
