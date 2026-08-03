@@ -1,0 +1,82 @@
+#libraries
+library(dplyr)
+library(tidyverse)
+library(ensembldb)
+library(biomaRt)
+library(org.Hs.eg.db)
+
+#Load TSV file
+annotations<- read.delim("/pwd/input_file.tsv", header = FALSE)
+
+##Data Cleaning/Reformatting##
+
+#Rename ID column to rsID if present
+if ("ID" %in% names(annotations)) {
+  names(annotations)[names(annotations) == "ID"] <- "rsID"
+}
+annotations_filtered <- annotations %>% dplyr::select(-c(IMPACT, Feature_type, BIOTYPE, SYMBOL_SOURCE, FLAGS, HGNC_ID, SOURCE, HGVSc, HGVSp, ClinVar, ClinVar_CLNDN, ClinVar_CLNREVSTAT, Allele, ID, Existing_variation))
+
+#Keep only the primary VEP consequence (before the "&")
+annotations_filtered$Consequence <- sub("&.*", "", annotations_filtered$Consequence)
+
+#Remove the "chr" prefix from CHROM for variant ID generation
+annotations_filtered$CHROM <- sub("^chr", "", annotations_filtered$CHROM)
+#Create a unique variant ID column (i.e. chr1123456AG)
+annotations_filtered$ID <- paste0("chr",annotations_filtered$CHROM, annotations_filtered$POS, annotations_filtered$REF, annotations_filtered$ALT)
+
+annotations_filtered <- annotations_filtered %>%
+  relocate(ID, .before = 1)
+
+#Re-label zygosity column
+annotations_filtered$Zygosity <- ifelse(annotations_filtered$Zygosity == "0/0", "HomRef (0/0)",
+  ifelse(annotations_filtered$Zygosity == "1/1", "HomAlt (1/1)",
+  ifelse(annotations_filtered$Zygosity == "0/1", "Het (0/1)", ".")))
+
+##Create consequence ranking column##
+
+#Create VEP consequence severity ranking (lower -> more severe)
+ranking <- c(
+"stop_gained" = 1,
+"frameshift_variant" = 2,
+"splice_acceptor_variant" = 3,
+"splice_donor_variant" = 3,
+"missense_variant"= 4,
+"start_lost" = 4,
+"stop_lost"  = 4,
+"protein_altering_variant" = 4,
+"coding_sequence_variant" = 4,
+"incomplete_terminal_codon_variant" = 4,
+"inframe_insertion" = 5,
+"inframe_deletion"  = 5,
+"synonymous_variant"   = 6,
+"stop_retained_variant"= 6,
+"3_prime_UTR_variant" = 7,
+"5_prime_UTR_variant" = 7,
+"upstream_gene_variant" = 8,
+"downstream_gene_variant" = 8,
+"intron_variant" = 8,
+"splice_polypyrimidine_tract_variant" = 8,
+"splice_donor_region_variant" = 8,
+"splice_region_variant" = 8,
+"splice_donor_5th_base_variant" = 8,
+"non_coding_transcript_exon_variant" = 8,
+"non_coding_transcript_variant" = 8,
+"mature_miRNA_variant" = 8,
+"intergenic_variant" = 8 )
+
+annotations_filtered$Rank <- unname(ranking[annotations_filtered$Consequence])
+
+#Filter out duplicate variants
+annotations_final <- annotations_filtered %>%
+  mutate(rank = as.numeric(annotations_filtered$Rank)) %>%
+  group_by(`Ensembl Gene ID`, `Ensembl Transcript ID`) %>%
+  slice_min(order_by = Rank, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+#Write output TSV
+write.table(
+  annotations_final,
+  "/pwd/output_file.tsv",
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE)
