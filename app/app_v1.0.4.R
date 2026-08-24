@@ -61,6 +61,83 @@ ui <- fluidPage(
   theme = shinytheme("flatly"),
   titlePanel("Genetic Variants"),
 
+  # ── Global CSS ────────────────────────────────────────────────────────────
+  tags$style(HTML("
+
+    /* ── Row height: truncate long cell content with ellipsis ─────────────
+       Prevents wide/verbose fields (HGVSc, ClinVar, gnomAD notes) from
+       stretching rows. Hover over a cell to see the full value via the
+       browser tooltip (DataTables adds the title attribute automatically). */
+    table.dataTable tbody td {
+      white-space:     nowrap;
+      overflow:        hidden;
+      text-overflow:   ellipsis;
+      max-width:       300px;
+    }
+
+    /* Keep zygosity colour spans readable — don't clip the background */
+    table.dataTable tbody td span[style*='background'] {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Column filter inputs: bigger, clearer, always visible ─────────────
+       DT renders filter inputs as input[type=search] inside th elements.
+       The th inherits overflow:hidden from DataTables which clips text;
+       we override that. Unquoted attribute selectors (valid CSS) avoid
+       any escaping issues inside R strings. */
+
+    /* Allow the header cell to show the full input without clipping */
+    table.dataTable thead th,
+    table.dataTable tfoot th {
+      overflow: visible;
+      position: relative;
+    }
+
+    /* Target DT filter inputs — unquoted attr values are valid CSS */
+    table.dataTable thead input[type=search],
+    table.dataTable thead input[type=text],
+    table.dataTable thead select,
+    table.dataTable tfoot input[type=search],
+    table.dataTable tfoot input[type=text],
+    table.dataTable tfoot select {
+      width:            100% !important;
+      box-sizing:       border-box !important;
+      font-size:        13px;
+      font-family:      inherit;
+      height:           30px;
+      padding:          3px 8px;
+      border:           1px solid #c8c8c8;
+      border-radius:    3px;
+      background-color: #ffffff !important;
+      color:            #222222 !important;
+      overflow:         visible;
+      text-overflow:    clip;
+      white-space:      nowrap;
+    }
+
+    table.dataTable thead input[type=search]:focus,
+    table.dataTable thead input[type=text]:focus,
+    table.dataTable tfoot input[type=search]:focus,
+    table.dataTable tfoot input[type=text]:focus {
+      background-color: #fffde7 !important;
+      border-color:     #2196F3 !important;
+      color:            #000000 !important;
+      outline:          none !important;
+      box-shadow:       0 0 0 2px rgba(33,150,243,.25) !important;
+      position:         relative;
+      z-index:          10;
+    }
+
+    table.dataTable thead input[type=search]::placeholder,
+    table.dataTable tfoot input[type=search]::placeholder {
+      color:   #aaa;
+      opacity: 1;
+    }
+
+  ")),
+
   # ── Global JS fixes applied once at page load ──────────────────────────
   tags$script(HTML("
     $(document).ready(function() {
@@ -392,7 +469,6 @@ server <- function(input, output, session) {
       Variant_Type      = input$Variant_Type,
       cadd_filter       = input$cadd_filter,
       gnomad_af_filter  = input$gnomad_af_filter,
-      gnomad_include_na = input$gnomad_include_na,
       gnomad_novel_only = input$gnomad_novel_only,
       gnomad_af_col     = input$gnomad_af_col
     )
@@ -418,8 +494,6 @@ server <- function(input, output, session) {
       updateSliderInput(session,        "cadd_filter",        value    = f$cadd_filter)
     if (!is.null(f$gnomad_af_filter))
       updateSliderInput(session,        "gnomad_af_filter",   value    = f$gnomad_af_filter)
-    if (!is.null(f$gnomad_include_na))
-      updateCheckboxInput(session,      "gnomad_include_na",  value    = f$gnomad_include_na)
     if (!is.null(f$gnomad_novel_only))
       updateCheckboxInput(session,      "gnomad_novel_only",  value    = f$gnomad_novel_only)
     if (!is.null(f$gnomad_af_col))
@@ -485,9 +559,6 @@ server <- function(input, output, session) {
         sliderInput("gnomad_af_filter",
                     label    = "Max allele frequency:",
                     min      = 0, max = 1, value = 1, step = 0.001),
-        checkboxInput("gnomad_include_na",
-                      label = "Include variants absent from gnomAD (NA)",
-                      value = TRUE),
         checkboxInput("gnomad_novel_only",
                       label = "Show ONLY novel variants (absent from gnomAD)",
                       value = FALSE),
@@ -515,13 +586,10 @@ server <- function(input, output, session) {
         sliderInput("gnomad_af_filter",
                     label    = "Max allele frequency:",
                     min      = 0, max = 1, value = 1, step = 0.001),
-        checkboxInput("gnomad_include_na",
-                      label = "Include variants absent from gnomAD (NA)",
-                      value = TRUE),
         checkboxInput("gnomad_novel_only",
                       label = "Show ONLY novel variants (absent from gnomAD)",
                       value = FALSE),
-        helpText("Novel variants have no frequency in gnomAD — often de novo or population-specific.")
+        helpText("Slider filters by max population AF. Variants absent from gnomAD (NA) are always included unless \"Novel only\" is checked.")
       )
 
     } else if (tab == "Common Genes by Patient Table") {
@@ -545,13 +613,10 @@ server <- function(input, output, session) {
         sliderInput("gnomad_af_filter",
                     label    = "Max allele frequency:",
                     min      = 0, max = 1, value = 1, step = 0.001),
-        checkboxInput("gnomad_include_na",
-                      label = "Include variants absent from gnomAD (NA)",
-                      value = TRUE),
         checkboxInput("gnomad_novel_only",
                       label = "Show ONLY novel variants (absent from gnomAD)",
                       value = FALSE),
-        helpText("Novel variants have no frequency in gnomAD — often de novo or population-specific.")
+        helpText("Slider filters by max population AF. Variants absent from gnomAD (NA) are always included unless \"Novel only\" is checked.")
       )
 
     } else if (tab == "Phenotypes") {
@@ -870,11 +935,11 @@ server <- function(input, output, session) {
       is_cadd_noop <- (cadd_min == 0 && cadd_max >= 50)
       if (!is_cadd_noop) {
         cat(sprintf("CADD filter: %g - %g\n", cadd_min, cadd_max))
+        # When the slider is moved from default, exclude unscored variants:
+        # a PHRED threshold only makes sense for variants that have a score.
         filtered_data <- filtered_data %>%
           mutate(.phred = suppressWarnings(as.numeric(PHRED))) %>%
-          # Include unscored (NA PHRED) variants even when CADD filter is active
-          # so rare unscored variants are not silently removed
-          filter(is.na(.phred) | (.phred >= cadd_min & .phred <= cadd_max)) %>%
+          filter(!is.na(.phred) & .phred >= cadd_min & .phred <= cadd_max) %>%
           dplyr::select(-.phred)
       }
     }
@@ -893,28 +958,21 @@ server <- function(input, output, session) {
       found <- intersect(AF_COL_CANDIDATES, names(filtered_data))
       if (length(found) > 0) found[1] else NULL
     }
-    # Only apply gnomAD filter when the sidebar has fully rendered
-    # (all three inputs exist) AND the user has actually set a meaningful filter.
-    # Defaults: max_af=1, include_na=TRUE, novel_only=FALSE → no filtering.
-    gnomad_ready <- !is.null(input$gnomad_af_filter) &&
-                    !is.null(input$gnomad_include_na) &&
-                    !is.null(af_col)
+    # gnomAD filter: NA variants are always included unless novel_only is checked.
+    # Defaults: slider at 1.0, novel_only = FALSE → no filtering (show everything).
+    gnomad_ready <- !is.null(input$gnomad_af_filter) && !is.null(af_col)
     if (gnomad_ready) {
       novel_only <- isTRUE(input$gnomad_novel_only)
-      include_na <- isTRUE(input$gnomad_include_na)
       max_af     <- input$gnomad_af_filter
-      # Skip filtering entirely when settings are at their no-op defaults
-      # (max_af == 1 AND include_na == TRUE AND novel_only == FALSE)
-      is_noop <- !novel_only && include_na && max_af >= 1
+      is_noop    <- !novel_only && max_af >= 1
       if (!is_noop) {
         filtered_data <- filtered_data %>%
           mutate(.af = suppressWarnings(as.numeric(.data[[af_col]]))) %>%
           filter(
             if (novel_only) {
-              is.na(.af)
+              is.na(.af)                                   # novel only: no gnomAD entry
             } else {
-              (include_na & is.na(.af)) |
-              (!is.na(.af) & .af <= max_af)
+              is.na(.af) | (!is.na(.af) & .af <= max_af)  # rare + unobserved (always include NA)
             }
           ) %>%
           dplyr::select(-.af)
@@ -927,8 +985,10 @@ server <- function(input, output, session) {
     cat(sprintf("Output rows: %d, columns: %d\n", nrow(filtered_data), ncol(filtered_data)))
     filtered_data
   })
-  # Debounce collapses rapid-fire invalidations (multiple sidebar inputs
-  # becoming defined on startup) into a single evaluation after 300ms.
+  # Simple debounce on the raw reactive — no bindCache wrapper.
+  # bindCache(debounce(...)) adds delay even on cache hits; debounce(bindCache(...))
+  # errors because debounce uses bindEvent internally.
+  # 300ms collapses rapid startup/tab-switch invalidations without noticeable lag.
   Variant_type_reac <- debounce(Variant_type_reac_raw, 300)
 
   # ── Variant_Type DT – render ONCE, update data via proxy ─────────────────
@@ -936,6 +996,7 @@ server <- function(input, output, session) {
   # ColReorder state is preserved by the shiny:value save + initComplete restore
   # in the global JS — no proxy/replaceData needed.
   output$Variant_Type <- renderDT({
+    req(input$main_tabs == "Genetic Variants")
     df <- Variant_type_reac()
     make_dt(df, "Variant_Type", selection = "single", filter = "top")
   }, server = TRUE)
@@ -1155,6 +1216,7 @@ server <- function(input, output, session) {
 
   # ── Plots ─────────────────────────────────────────────────────────────────
   output$ConsequencePieChart <- renderPlot({
+    req(input$main_tabs == "Genetic Variants")
     fd <- Variant_type_reac()
     if (nrow(fd) == 0 || !"Consequence" %in% names(fd)) return(NULL)
     counts <- fd %>%
@@ -1168,6 +1230,7 @@ server <- function(input, output, session) {
   })
 
   output$PHRED_Histogram <- renderPlot({
+    req(input$main_tabs == "Genetic Variants")
     fd <- Variant_type_reac()
     if (nrow(fd) == 0) return(NULL)
     fd <- fd %>%
@@ -1182,10 +1245,23 @@ server <- function(input, output, session) {
   })
 
   # ── GeneList_Genotype_Table ───────────────────────────────────────────────
+  # Variant_type_DT_filtered: sidebar filters + DT column filters combined.
+  # input$Variant_Type_rows_all = row indices DT considers visible after its
+  # own column filtering (e.g. user typed "STAT" in GeneName filter).
+  # Both GeneList_Genotype_Table and the download use this so they stay in sync.
+  Variant_type_DT_filtered <- reactive({
+    df   <- Variant_type_reac()
+    rows <- input$Variant_Type_rows_all
+    if (is.null(rows) || length(rows) == 0) return(df)
+    valid <- rows[rows >= 1L & rows <= nrow(df)]
+    if (length(valid) == 0) return(df)
+    df[valid, , drop = FALSE]
+  })
+
   GeneList_Genotype_Table <- reactive({
-    # Join directly against Variant_type_reac() so this table reacts to ALL
-    # sidebar filters (gene list, consequence checkboxes, CADD slider)
-    filtered_variants <- Variant_type_reac()
+    # Use DT-filtered variants: respects both sidebar AND column filters
+    # (e.g. typing 'STAT' in the GeneName column of the Variant_Type table)
+    filtered_variants <- Variant_type_DT_filtered()
     if (nrow(filtered_variants) == 0) return(tibble())
 
     results <- all_genotypes() %>% inner_join(filtered_variants, by = "ID")
@@ -1386,6 +1462,7 @@ server <- function(input, output, session) {
 
   # ── renderDT outputs ──────────────────────────────────────────────────────
   output$Matching_ID_Table <- renderDT({
+    req(input$main_tabs == "Genetic Variants")
     df <- Matching_ID_Table()
     if (nrow(df) == 0) return(datatable(tibble(), options = list(dom = "t")))
 
@@ -1401,31 +1478,32 @@ server <- function(input, output, session) {
   })
 
   output$GeneList_Genotype_Table <- renderDT({
+    req(input$main_tabs == "Genetic Variants")
     df <- GeneList_Genotype_Table()
     make_dt(df, "GeneList_Genotype_Table", selection = "single", filter = "top")
   }, server = TRUE)
 
   output$Joined_Table <- renderDT({
-    req(input$Patient)
+    req(input$main_tabs == "Common Variants", input$Patient)
     df <- Joined_Table()
     make_dt(df, "Joined_Table", filter = "top")
   })
 
   output$Joined_Table_matching <- renderDT({
-    req(input$Patient)
+    req(input$main_tabs == "Common Variants", input$Patient)
     df <- Joined_Table_matching()
     if (nrow(df) == 0) return(datatable(tibble(), options = list(dom = "t")))
     make_dt(df, "Joined_Table_matching", selection = "single", filter = "top")
   })
 
   output$Joined_Gene_Table <- renderDT({
-    req(input$Patient)
+    req(input$main_tabs == "Common Genes by Patient Table", input$Patient)
     df <- Joined_Gene_Table()
     make_dt(df, "Joined_Gene_Table", filter = "top")
   })
 
   output$CommonGenesPlot <- renderPlot({
-    req(input$Patient)
+    req(input$main_tabs == "Common Genes by Patient Table", input$Patient)
     d <- gene_summary_raw()
     summary_df <- d$summary
     if (nrow(summary_df) == 0) return(NULL)
@@ -1685,7 +1763,7 @@ server <- function(input, output, session) {
   output$downloadVariantType <- downloadHandler(
     filename = function() paste0("filtered_variant_types_", Sys.Date(), ".csv"),
     content  = function(file) {
-      fd <- Variant_type_reac()
+      fd <- Variant_type_DT_filtered()  # includes DT column filters
       if (nrow(fd) == 0) write.csv(data.frame(Message = "No data selected"), file)
       else write.csv(fd, file, row.names = FALSE)
     }
