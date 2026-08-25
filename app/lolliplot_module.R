@@ -224,18 +224,27 @@ lolliplotServer <- function(id, variant_data_reactive = NULL, pheno, list_of_fil
         return(cache[[gene_symbol]])
       }
 
-      # 2-4. Remote sources
+      # 2-4. Remote sources — track which one succeeded
       domain_info <- NULL
-      for (fetcher in list(get_domains_uniprot, get_domains_rest, get_domains_biomart)) {
-        domain_info <- tryCatch(fetcher(gene_symbol), error = function(e) NULL)
-        if (!is.null(domain_info) && nrow(domain_info) > 0) break
+      domain_source <- "Unknown"
+      fetchers <- list(
+        list(fn = get_domains_uniprot,  label = "UniProt"),
+        list(fn = get_domains_rest,     label = "Ensembl REST"),
+        list(fn = get_domains_biomart,  label = "Ensembl BioMart")
+      )
+      for (f in fetchers) {
+        domain_info <- tryCatch(f$fn(gene_symbol), error = function(e) NULL)
+        if (!is.null(domain_info) && nrow(domain_info) > 0) {
+          domain_source <- f$label
+          break
+        }
       }
 
       gr <- domains_to_granges(domain_info, gene_symbol)
-
-      # Cache successful results so future lookups are instant
-      if (!is.null(gr)) save_to_cache(gene_symbol, gr)
-
+      if (!is.null(gr)) {
+        attr(gr, "domain_source") <- domain_source
+        save_to_cache(gene_symbol, gr)
+      }
       gr
     }
 
@@ -350,8 +359,13 @@ lolliplotServer <- function(id, variant_data_reactive = NULL, pheno, list_of_fil
         max(c(max(df$AA_pos, na.rm = TRUE), max(end(domain_gr))))
       }
 
-      plot_range <- GRanges(seq_name, IRanges(1L, as.integer(prot_len)))
+      plot_range    <- GRanges(seq_name, IRanges(1L, as.integer(prot_len)))
+      domain_source <- attr(domain_gr, "domain_source") %||% "Unknown"
+      plot_title    <- paste0(gene, "  |  Protein domains: ", domain_source,
+                              "  |  n = ", nrow(df), " variant",
+                              if (nrow(df) == 1) "" else "s")
       lolliplot(variant_gr, domain_gr, ranges = plot_range)
+      title(main = plot_title, cex.main = 0.95, font.main = 1, col.main = "#444444")
     })
     
     # Summary table
