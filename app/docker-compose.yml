@@ -1,0 +1,29 @@
+services:
+  variant-db:
+    build: .
+    image: variant-explorer:1.0.0
+    container_name: variant-explorer
+    ports:
+      - "3838:3838"
+    volumes:
+      # ── Patient data (stays on your machine, never inside the image) ────────
+      - ./annotations:/app/annotations
+      - ./New_genotypes:/app/New_genotypes
+
+      # ── Persistent app state (column layouts, candidate list, domain cache) ─
+      #- ./col_state_v2.json:/app/col_state_v2.json
+      #- ./candidates.csv:/app/candidates.csv
+      #- ./domain_cache.rds:/app/domain_cache.rds
+      #- ./column_mapping_config.json:/app/column_mapping_config.json
+
+      # ── Optional: Phenotype and CRAM path files ────────────────────────────
+      # - ./Phenotypes.xlsx:/app/Phenotypes.xlsx
+      # - ./cram_paths.xlsx:/app/cram_paths.xlsx
+
+    restart: unless-stopped
+
+    # Increase memory limit if needed for large datasets
+    # mem_limit: 8g
+
+    environment:
+      - SHINY_LOG_LEVEL=WARN

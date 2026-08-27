@@ -1,0 +1,28 @@
+# Data — mounted as volumes at runtime, never baked into the image
+annotations/
+New_genotypes/
+Phenotypes.xlsx
+cram_paths.xlsx
+
+# Cache and state files — mounted at runtime
+domain_cache.rds
+col_state_v2.json
+candidates.csv
+column_mapping_config.json
+
+# Git and dev files
+.git/
+.gitignore
+*.Rproj
+.Rprofile
+renv/library/
+
+# Old app versions
+app_v_*.R
+app_v1.0.*.R
+
+# Build output
+Output/
+dist/
+nativefier-app/
+bin/
