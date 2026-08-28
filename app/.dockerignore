@@ -18,8 +18,8 @@ column_mapping_config.json
 renv/library/
 
 # Old app versions
-app_v_*.R
-app_v1.0.*.R
+
+
 
 # Build output
 Output/
