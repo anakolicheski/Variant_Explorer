@@ -68,4 +68,4 @@ EXPOSE 3838
 
 # Run the Shiny app directly (no Shiny Server needed for single-app deploy)
 CMD ["R", "-e", \
-    "shiny::runApp('/app/app_v1_0_1.R', host='0.0.0.0', port=3838, launch.browser=FALSE)"]
+    "shiny::runApp('/app/app_v1.0.4.R', host='0.0.0.0', port=3838, launch.browser=FALSE)"]
