@@ -60,12 +60,6 @@ COPY app_v1.0.4.R          ./
 COPY variant_upload_module.R ./
 COPY lolliplot_module.R      ./
 
-# Optional files — copy if they exist (won't fail if missing)
-COPY col_state_v2.json*      ./ 2>/dev/null || true
-COPY candidates.csv*         ./ 2>/dev/null || true
-COPY column_mapping_config.json* ./ 2>/dev/null || true
-COPY FRESH_DATABASE_SETUP_GUIDE.md* ./ 2>/dev/null || true
-
 # Create directories that will be bind-mounted from the host
 RUN mkdir -p annotations New_genotypes www
 
