@@ -21,10 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtiff5-dev \
     libjpeg-dev \
     libwebp-dev \
+    libuv1-dev \
+    libbz2-dev \
+    liblzma-dev \
     zlib1g-dev \
     pandoc \
     && rm -rf /var/lib/apt/lists/*
-
+    
 # ── R package installation via renv ──────────────────────────────────────────
 # Copy lockfile first so Docker caches the package layer separately from
 # app code changes — rebuilds after editing R files skip package install.
