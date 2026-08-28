@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     pandoc \
     && rm -rf /var/lib/apt/lists/*
-    
+
 # ── R package installation via renv ──────────────────────────────────────────
 # Copy lockfile first so Docker caches the package layer separately from
 # app code changes — rebuilds after editing R files skip package install.
@@ -40,12 +40,19 @@ COPY renv.lock renv.lock
 # Configure renv to use Bioconductor and restore all packages
 # This step takes 10-30 min on first build; cached on subsequent builds
 RUN R -e " \
-    options(renv.config.repos.override = c( \
+    repos <- c( \
       CRAN = 'https://cloud.r-project.org', \
       BioCsoft = 'https://bioconductor.org/packages/3.18/bioc', \
       BioCann  = 'https://bioconductor.org/packages/3.18/data/annotation' \
-    )); \
-    renv::restore(prompt = FALSE) \
+    ); \
+    options(renv.config.repos.override = repos, repos = repos); \
+    tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, attempting manual patch: ', conditionMessage(e))); \
+    missing_pkgs <- c('ensembldb','biovizBase','Gviz','trackViewer')[ \
+      !sapply(c('ensembldb','biovizBase','Gviz','trackViewer'), requireNamespace, quietly = TRUE) \
+    ]; \
+    if (length(missing_pkgs) > 0) install.packages(missing_pkgs, repos = repos); \
+    still_missing <- missing_pkgs[!sapply(missing_pkgs, requireNamespace, quietly = TRUE)]; \
+    if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) \
 "
 
 # ── Copy app files ────────────────────────────────────────────────────────────
