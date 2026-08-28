@@ -6,6 +6,8 @@ FROM rocker/shiny:4.3.3
 # Required by tidyverse, httr, XML, Cairo (for trackViewer graphics),
 # readxl, and Bioconductor packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    pkg-config \
     libcurl4-openssl-dev \
     libssl-dev \
     libxml2-dev \
@@ -18,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libtiff5-dev \
     libjpeg-dev \
+    libwebp-dev \
     zlib1g-dev \
     pandoc \
     && rm -rf /var/lib/apt/lists/*
