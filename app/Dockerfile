@@ -46,11 +46,14 @@ RUN R -e " \
       BioCann  = 'https://bioconductor.org/packages/3.18/data/annotation' \
     ); \
     options(renv.config.repos.override = repos, repos = repos); \
-    tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, attempting manual patch: ', conditionMessage(e))); \
-    missing_pkgs <- c('ensembldb','biovizBase','Gviz','trackViewer')[ \
-      !sapply(c('ensembldb','biovizBase','Gviz','trackViewer'), requireNamespace, quietly = TRUE) \
-    ]; \
-    if (length(missing_pkgs) > 0) install.packages(missing_pkgs, repos = repos); \
+    tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, will patch missing packages: ', conditionMessage(e))); \
+    lock <- renv::lockfile_read('renv.lock'); \
+    pkgs <- names(lock\$Packages); \
+    missing_pkgs <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
+    if (length(missing_pkgs) > 0) { \
+      message('Installing missing packages: ', paste(missing_pkgs, collapse = ', ')); \
+      install.packages(missing_pkgs, repos = repos) \
+    }; \
     still_missing <- missing_pkgs[!sapply(missing_pkgs, requireNamespace, quietly = TRUE)]; \
     if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) \
 "
