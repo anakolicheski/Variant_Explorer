@@ -10,7 +10,7 @@ For detailed instructions on download installation and setting up your own datab
 - **Variant browsing** — filter by consequence type, CADD PHRED score, and gene list; live pie chart and PHRED histogram update with filters
 - **Multi-sample analysis** — find variants shared across selected patients/families; gene-level table identifies genes with variants in more than one patient
 - **Phenotype integration** — filter patients by HPO/phenotype terms; phenotype table is editable in-app
-- **Lollipop plots** — gene-level variant visualisation mapped to protein domains fetched live from Ensembl/BioMart
+- **Lollipop plots** — gene-level variant visualisation mapped to protein domains fetched live from Ensembl/BioMart or Uniprot
 - **Candidate variant curation** — capture variants from any table into a persistent review list with editable notes and custom columns
 - **Variant upload** — upload annotated TSV/CSV files, map columns interactively, and append to the shared database without restarting the app
 - **Persistent column layouts** — drag to reorder, show/hide columns, and save preferences across sessions
