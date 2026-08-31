@@ -39,7 +39,7 @@ BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
 
 ```bash
 git clone "link --- still a place holder here"
-cd whateverfolder
+cd Variant_Explorer/app
 ```
 
 Or download zip file from latest release. See FRESH_DATABASE_SETUP_GUIDE.md under the app subfolder for more guidance.
@@ -51,45 +51,82 @@ Or download zip file from latest release. See FRESH_DATABASE_SETUP_GUIDE.md unde
 ```
 cooper-lab-variants/
 ├── app/
-│   ├── app.R                        # Main application (versions may vary with release)
+│   ├── app_v1.0.4.R                 # Main application (filename changes with version)
 │   ├── lolliplot_module.R           # Lollipop plot module
 │   ├── variant_upload_module.R      # Variant upload & processing module
-│   └── FRESH_DATABASE_SETUP_GUIDE.md
+│   ├── FRESH_DATABASE_SETUP_GUIDE.md  # ***Need to update this guide to add the docker method***
+│   │
+│   ├── Dockerfile                   # Container build definition
+│   ├── docker-compose.yml           # Container orchestration / volume mounts
+│   ├── .dockerignore                # Files excluded from Docker build context
+│   ├── DOCKER_SETUP.md              # Docker installation & usage guide
+│   ├── start.bat                    # Windows: build/start convenience script
+│   ├── start.sh                     # Mac/Linux: build/start convenience script
+│   │
+│   ├── renv.lock                    # R package version lockfile (used by Docker build)
+│   │
+│   ├── annotations/                 # Annotation database (generated on first upload)
+│   ├── New_genotypes/               # Per-sample genotype files (generated on upload)
+│   ├── candidates.csv               # Saved candidate variants
+│   ├── col_state_v2.json            # Saved column layout preferences
+│   ├── column_mapping_config.json   # Saved upload column-mapping preferences
+│   └── domain_cache.rds             # Cached protein domain data (Lollipop Plot tab)
 │
 └── test_data/
     ├── README.md                    # How to use the test files and data preprocessing
     ├── annotations/
-    |   |── annotations_fordb.tsv    # Annotated variants from Harvard PGP public WGS data (pgp.med.harvard.edu); see preprocessing/ for pipeline scripts (without genotype information)
-    ├── New_genotypes/           # Example of what your input genotype files for the same variants in annotated variants will look like
-    |   |── hu1C1368_geno.tsv
-    |       .....
-    ├── example_tsvs                 # Example of annotated TSV files. Your own files to be uploaded should look a bit like these. You can also test upload these files
-    |   |── hu1C1368.tsv
-    |       .....
-    ├── Phenotypes.xlsx              # Example phenotype table
-    ├── cram_paths.xlsx              # Example CRAM path table
-    └── example_gene_list.csv        # Example gene list for filtering (IUIS-IEI list)
+    │   └── annotations_fordb.tsv    # Annotated variants from Harvard PGP public WGS data (pgp.med.harvard.edu); see preprocessing/ for pipeline scripts (without genotype information)
+    ├── New_genotypes/                # Example of what your input genotype files for the same variants in annotated variants will look like
+    │   └── hu1C1368_geno.tsv
+    │       .....
+    ├── example_tsvs/                 # Example of annotated TSV files. Your own files to be uploaded should look a bit like these. You can also test upload these files
+    │   └── hu1C1368.tsv
+    │       .....
+    ├── Phenotypes.xlsx                # Example phenotype table
+    ├── cram_paths.xlsx                # Example CRAM path table  *** still need to be added ***
+    └── example_gene_list.csv          # Example gene list for filtering (IUIS-IEI list)
 ```
 
 The following directories and files are created automatically at runtime and are **not** tracked by git:
 
 ```
-app/annotations/        # Annotation database (generated on first upload)
-app/New_genotypes/      # Per-sample genotype files (generated on upload)
-app/candidates.csv      # Saved candidate variants
-app/col_state.json      # Saved column layout preferences
+app/annotations/                # Annotation database (generated on first upload)
+app/New_genotypes/              # Per-sample genotype files (generated on upload)
+app/candidates.csv              # Saved candidate variants
+app/col_state_v2.json           # Saved column layout preferences
+app/column_mapping_config.json  # Saved upload column-mapping preferences
+app/domain_cache.rds            # Cached protein domain data
 ```
-
 ---
 
 ## Quick Start
 
-### 1. Fresh setup (no existing data)
+### Option A: Docker (recommended)
 
-```r
-setwd("app/")   ## Navigate to the folder where you saved the app files
+No R installation required - see `DOCKER_SETUP.md` for full setup instructions. 
+
+```
+git clone "link --- still a place holder here"
+cd whateverfolder/app
+docker compose build
+docker compose up
+```
+
+The app opens at `http://localhost:3838`. 
+
+### Option B: Local R install
+
+If you prefer not to use Docker: 
+
+```
+setwd("app/") ## navigate to the folder where you saved the app files
 shiny::runApp()
 ```
+
+Navigate to the Variant Upload tab and follow the steps to upload your first annotated variant file. 
+Click **Refresh Data After Upload** when done. See `FRESH_DATABASE_SETUP_GUIDE.md` for a full walkthrough
+
+### 1. Fresh setup (no existing data)
 
 Navigate to the **Variant Upload** tab and follow the steps to upload your first annotated variant file. Click **Refresh Data After Upload** when done. See `FRESH_DATABASE_SETUP_GUIDE.md` (available in the Tutorial tab) for a full walkthrough.
 
@@ -146,7 +183,7 @@ Common VEP/Ensembl output field names (e.g. `SYMBOL`, `Consequence`, `CADD_PHRED
 
 ## Notes
 
-- The Lollipop Plot tab requires an active internet connection to fetch protein domain data from Ensembl. Domains are cached per session; genes with no Pfam records will display a fallback message.
+- The Lollipop Plot tab requires an active internet connection to fetch protein domain data from Ensembl and Uniprot. Domains are cached per session; genes with no Pfam records will display a fallback message.
 - File paths are relative to the working directory where the app is launched. Always `setwd()` to the `app/` folder before running.
 - The app is designed for local or institutional server deployment.
 
