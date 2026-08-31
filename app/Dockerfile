@@ -38,7 +38,7 @@ RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')"
 COPY renv.lock renv.lock
 
 # Configure renv to use Bioconductor and restore all packages
-# This step takes 10-30 min on first build; cached on subsequent builds
+# Step 1: restore what renv can, don't fail the build if some packages are missing
 RUN R -e " \
     repos <- c( \
       CRAN = 'https://cloud.r-project.org', \
@@ -46,17 +46,31 @@ RUN R -e " \
       BioCann  = 'https://bioconductor.org/packages/3.18/data/annotation' \
     ); \
     options(renv.config.repos.override = repos, repos = repos); \
-    tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, will patch missing packages: ', conditionMessage(e))); \
+    tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, will patch missing packages: ', conditionMessage(e)))"
+
+# Step 2: fresh R session — find what's still missing and install it directly
+RUN R -e " \
+    repos <- c( \
+      CRAN = 'https://cloud.r-project.org', \
+      BioCsoft = 'https://bioconductor.org/packages/3.18/bioc', \
+      BioCann  = 'https://bioconductor.org/packages/3.18/data/annotation' \
+    ); \
     lock <- renv::lockfile_read('renv.lock'); \
     pkgs <- names(lock\$Packages); \
     missing_pkgs <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
     if (length(missing_pkgs) > 0) { \
       message('Installing missing packages: ', paste(missing_pkgs, collapse = ', ')); \
       install.packages(missing_pkgs, repos = repos) \
-    }; \
-    still_missing <- missing_pkgs[!sapply(missing_pkgs, requireNamespace, quietly = TRUE)]; \
-    if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) \
-"
+    } else { \
+      message('Nothing missing.') \
+    }"
+
+# Step 3: another fresh session — final verification, this one IS allowed to fail the build
+RUN R -e " \
+    lock <- renv::lockfile_read('renv.lock'); \
+    pkgs <- names(lock\$Packages); \
+    still_missing <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
+    if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) else message('All packages verified installed.')"
 
 # ── Copy app files ────────────────────────────────────────────────────────────
 COPY app_v1.0.4.R          ./
