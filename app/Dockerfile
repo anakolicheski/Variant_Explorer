@@ -73,16 +73,21 @@ RUN R -e " \
     if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) else message('All packages verified installed.')"
 
 # ── Copy app files ────────────────────────────────────────────────────────────
-COPY app_v1.0.4.R          ./
+# The app file is copied in under a stable name (app.R), so a new version
+# only means changing the source filename on the next line.
+COPY app_v1.0.5.R            ./app.R
 COPY variant_upload_module.R ./
-COPY lolliplot_module.R      ./
+# The [d] glob makes the tutorial file optional: the build still works if
+# FRESH_DATABASE_SETUP_GUIDE.md is not in the folder.
+COPY lolliplot_module.R FRESH_DATABASE_SETUP_GUIDE.m[d] ./
 
 # Create directories that will be bind-mounted from the host
-RUN mkdir -p annotations New_genotypes www
+RUN mkdir -p annotations New_genotypes app_state www
+ENV APP_STATE_DIR=/app/app_state
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 EXPOSE 3838
 
 # Run the Shiny app directly (no Shiny Server needed for single-app deploy)
 CMD ["R", "-e", \
-    "shiny::runApp('/app/app_v1.0.4.R', host='0.0.0.0', port=3838, launch.browser=FALSE)"]
+    "shiny::runApp('/app/app.R', host='0.0.0.0', port=3838, launch.browser=FALSE)"]

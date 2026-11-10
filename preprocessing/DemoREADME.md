@@ -12,7 +12,7 @@ ensemblorg/ensembl-vep (docker pull ensemblorg/ensembl-vep:latest)
 biocontainers/bcftools (docker pull biocontainers/bcftools:v1.9-1-deb_cv1)
 Reference Files:
 
-Before running the scripts, download the following reference files:
+Before running the scripts, download the following reference files(These were used for the public data, you should use the reference files that correspond to the exome or genome pipeline that you have used. It could be build GRCh38, or something else):
 
 CADD (https://cadd.gs.washington.edu/download) All possible SNVs for GRCh37/hg19 file: whole_genome_SNVs.tsv.gz (https://krishna.gs.washington.edu/download/CADD/v1.7/GRCh37/whole_genome_SNVs.tsv.gz) GRCh37 liftover of gnomAD v4 indels (genomes + exomes): gnomad.genomes-exomes.r4.0.indel.tsv.gz (https://krishna.gs.washington.edu/download/CADD/v1.7/GRCh37/gnomad.genomes-exomes.r4.0.indel.tsv.gz)
 
@@ -21,6 +21,8 @@ gnomAD (https://gnomad.broadinstitute.org/downloads) gnomAD v2.1.1 GRCh37/hg19, 
 ClinVar (https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/) Index of /pub/clinvar/vcf_GRCh37: clinvar.vcf.gz: (https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz)
 
 FASTA (https://www.gencodegenes.org/human/release_37lift37.html) Genome sequence, primary assembly (GRCh37):GRCh37.primary_assembly.genome.fa (https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/GRCh37_mapping/GRCh37.primary_assembly.genome.fa.gz)
+
+
 
 Scripts:
 

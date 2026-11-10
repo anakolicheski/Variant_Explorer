@@ -3,7 +3,7 @@ set -e
 
 echo ""
 echo "  ╔═══════════════════════════════════════════╗"
-echo "  ║   Cooper Lab Variant Database  v1.0.1    ║"
+echo "  ║        Cooper Lab Variant Database        ║"
 echo "  ╚═══════════════════════════════════════════╝"
 echo ""
 
@@ -14,12 +14,19 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# Create placeholder files for volumes if they don't exist
-touch col_state_v2.json candidates.csv domain_cache.rds column_mapping_config.json 2>/dev/null || true
-mkdir -p annotations New_genotypes
+# Create the folders that are mounted into the container
+mkdir -p annotations New_genotypes app_state
 
-echo "  Starting app (first run may take a moment)..."
-docker compose up -d
+# One-time move of phenotype / CRAM files from the old location
+for f in Phenotypes.xlsx cram_paths.xlsx; do
+    if [ -s "$f" ] && [ ! -e "app_state/$f" ]; then
+        cp "$f" app_state/ && echo "  Copied $f into app_state/"
+    fi
+done
+
+echo "  Starting app (first run, or after an update, may take a few minutes)..."
+# --build rebuilds the image when the app files changed; it is quick otherwise
+docker compose up -d --build
 
 # Wait for the app to respond
 echo "  Waiting for app to start..."
@@ -37,9 +44,10 @@ fi
 
 echo ""
 echo "  App is running at http://localhost:3838"
-echo "  Press Ctrl+C to stop."
+echo "  Press Enter (or Ctrl+C) to stop the app."
 echo ""
 
-# Keep running; stop container on Ctrl+C
+# Stop the container on Enter or Ctrl+C
 trap "docker compose down; exit" INT TERM
-wait
+read -r _
+docker compose down

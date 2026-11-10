@@ -25,7 +25,7 @@ R (≥ 4.0) with the following packages:
 install.packages(c(
   "shiny", "shinythemes", "bslib", "shinyWidgets", "tidyverse",
   "readxl", "writexl", "DT", "jsonlite", "httr", "purrr",
-  "dplyr", "readr", "stringr"
+  "dplyr", "readr", "stringr", "markdown"
 ))
 
 # Bioconductor packages (installed separately via BiocManager)

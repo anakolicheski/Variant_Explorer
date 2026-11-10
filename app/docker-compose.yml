@@ -1,7 +1,7 @@
 services:
   variant-db:
     build: .
-    image: variant-explorer:1.0.0
+    image: variant-explorer:latest
     container_name: variant-explorer
     ports:
       - "3838:3838"
@@ -10,15 +10,11 @@ services:
       - ./annotations:/app/annotations
       - ./New_genotypes:/app/New_genotypes
 
-      # ── Persistent app state (column layouts, candidate list, domain cache) ─
-      #- ./col_state_v2.json:/app/col_state_v2.json
-      #- ./candidates.csv:/app/candidates.csv
-      #- ./domain_cache.rds:/app/domain_cache.rds
-      #- ./column_mapping_config.json:/app/column_mapping_config.json
-
-      # ── Optional: Phenotype and CRAM path files ────────────────────────────
-      # - ./Phenotypes.xlsx:/app/Phenotypes.xlsx
-      # - ./cram_paths.xlsx:/app/cram_paths.xlsx
+      # ── Persistent app state ────────────────────────────────────────────────
+      # Candidate list, column layouts, protein-domain cache, and the optional
+      # Phenotypes.xlsx / cram_paths.xlsx all live in this one folder, so
+      # nothing is lost when the container is rebuilt or recreated.
+      - ./app_state:/app/app_state
 
     restart: unless-stopped
 

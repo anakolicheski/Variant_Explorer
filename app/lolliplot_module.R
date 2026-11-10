@@ -61,11 +61,15 @@ lolliplotServer <- function(id, variant_data_reactive = NULL, pheno, list_of_fil
     #   4. BioMart (last resort — has been broadly unreliable since mid-2025)
     # Successful results are cached locally so each gene is only fetched once.
 
-    DOMAIN_CACHE_FILE <- "domain_cache.rds"
+    # Stored in the persistent state folder (see STATE_DIR in the app file)
+    DOMAIN_CACHE_FILE <- file.path(Sys.getenv("APP_STATE_DIR", "app_state"), "domain_cache.rds")
 
     load_domain_cache <- function() {
-      if (!file.exists(DOMAIN_CACHE_FILE)) return(list())
-      tryCatch(readRDS(DOMAIN_CACHE_FILE), error = function(e) list())
+      # Missing or empty (placeholder) file -> start with an empty cache
+      if (!file.exists(DOMAIN_CACHE_FILE) || isTRUE(file.size(DOMAIN_CACHE_FILE) == 0))
+        return(list())
+      cache <- tryCatch(readRDS(DOMAIN_CACHE_FILE), error = function(e) list())
+      if (is.list(cache)) cache else list()
     }
 
     save_to_cache <- function(gene_symbol, gr) {
