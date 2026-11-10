@@ -166,6 +166,47 @@ ui <- fluidPage(
       opacity: 1;
     }
 
+    /* ── Keep typed text visible WHILE typing ──────────────────────────────
+       The filter boxes and the cell editor pick up Bootstrap/Flatly
+       .form-control styles (45px tall, 10px padding, 15px font), and the
+       cell rules above add nowrap + overflow:hidden + ellipsis. Together
+       these can push the text out of view until the input loses focus.
+       These rules force a compact, explicitly coloured input in both
+       places. overflow:hidden on the input itself lets it scroll its own
+       text as you type (overflow:visible on an input can break that). */
+    table.dataTable thead input,
+    table.dataTable tfoot input,
+    table.dataTable tbody td input,
+    table.dataTable tbody td textarea {
+      color:                   #222 !important;
+      -webkit-text-fill-color: #222 !important;
+      opacity:                 1 !important;
+      text-indent:             0 !important;
+      text-overflow:           clip !important;
+      overflow:                hidden !important;
+      line-height:             normal !important;
+    }
+
+    /* Cell editor (editable tables): compact, highlighted while editing */
+    table.dataTable tbody td input,
+    table.dataTable tbody td textarea {
+      width:      100% !important;
+      min-width:  120px;
+      height:     auto !important;
+      padding:    3px 6px !important;
+      font-size:  13px !important;
+      background: #fffde7 !important;
+      border:     1px solid #2196F3 !important;
+      box-sizing: border-box !important;
+    }
+
+    /* The cell being edited must not clip its editor */
+    table.dataTable tbody td:has(input),
+    table.dataTable tbody td:has(textarea) {
+      overflow:      visible !important;
+      text-overflow: clip !important;
+    }
+
   ")),
 
   # ── Global JS fixes applied once at page load ──────────────────────────
@@ -244,7 +285,51 @@ ui <- fluidPage(
 
   sidebarLayout(
     sidebarPanel(
-      uiOutput("dynamic_sidebar")
+      # Built ONCE and never re-rendered. Sections are shown/hidden per tab with
+      # conditionalPanel, so switching tabs no longer destroys and recreates the
+      # inputs (which reset them to defaults and made every table reload).
+      conditionalPanel(
+        "['Common Variants','Common Genes by Patient Table','Phenotypes'].indexOf(input.main_tabs) >= 0",
+        selectInput("PhenotypeTerm", "Filter by Phenotype Term:",
+                    choices = NULL, selected = NULL, multiple = TRUE)
+      ),
+      conditionalPanel(
+        "['Common Variants','Common Genes by Patient Table'].indexOf(input.main_tabs) >= 0",
+        selectInput("Patient", "Filter by Sample/Family:",
+                    choices  = if (length(names(Genotypes)) > 0) names(Genotypes) else character(0),
+                    multiple = TRUE),
+        hr(),
+        h5("Variant Filters", style = "margin-bottom:4px;"),
+        helpText("Genetic Variants, Common Variants and Common Genes each keep their own filter settings.")
+      ),
+      conditionalPanel(
+        "['Genetic Variants','Common Variants','Common Genes by Patient Table'].indexOf(input.main_tabs) >= 0",
+        fileInput("geneListFile", "Upload Gene List", accept = c(".csv", ".tsv"))
+      ),
+      conditionalPanel(
+        "['Genetic Variants','Common Variants','Common Genes by Patient Table','Lollipop Plot'].indexOf(input.main_tabs) >= 0",
+        uiOutput("variant_type_filter"),
+        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
+                    min = 0, max = 50, value = c(0, 50), step = 1),
+        helpText("PHRED scores > 20 are generally considered deleterious")
+      ),
+      conditionalPanel(
+        "['Genetic Variants','Common Variants','Common Genes by Patient Table'].indexOf(input.main_tabs) >= 0",
+        hr(),
+        h5("gnomAD Population Frequency", style = "margin-bottom:4px;"),
+        uiOutput("gnomad_col_selector"),
+        sliderInput("gnomad_af_filter",
+                    label    = "Max allele frequency:",
+                    min      = 0, max = 1, value = 1, step = 0.001),
+        checkboxInput("gnomad_novel_only",
+                      label = "Show ONLY novel variants (absent from gnomAD)",
+                      value = FALSE),
+        helpText("Slider filters by max population AF. Variants absent from gnomAD (NA) are always included unless \"Novel only\" is checked.")
+      ),
+      conditionalPanel(
+        "['Genetic Variants','Common Variants','Common Genes by Patient Table','Lollipop Plot','Phenotypes'].indexOf(input.main_tabs) < 0",
+        helpText("No filters apply to this tab.")
+      )
     ),
 
     mainPanel(
@@ -255,8 +340,8 @@ ui <- fluidPage(
         # ── Genetic Variants ─────────────────────────────────────────────────
         tabPanel("Genetic Variants",
           fluidRow(
-            column(4, plotOutput("ConsequencePieChart",  height = "300px")),
-            column(4, plotOutput("PHRED_Histogram",      height = "300px"))
+            column(6, plotOutput("ConsequencePieChart",  height = "340px")),
+            column(6, plotOutput("PHRED_Histogram",      height = "340px"))
           ),
           br(),
           # ── Column layout controls ──────────────────────────────────────
@@ -373,7 +458,16 @@ ui <- fluidPage(
 
         # ── Tutorial ─────────────────────────────────────────────────────────
         tabPanel("Tutorial",
-          if (file.exists("FRESH_DATABASE_SETUP_GUIDE.md")) {
+          # Docker: tutorial.html is made from the .md by pandoc at build time,
+          # so the image doesn't need the R 'markdown' package.
+          # RStudio: render the .md directly if 'markdown' is installed.
+          # includeMarkdown() runs while the page is built at startup, so it
+          # must only be called when the package exists, or the app won't start.
+          if (file.exists("tutorial.html")) {
+            includeHTML("tutorial.html")
+          } else if (file.exists("FRESH_DATABASE_SETUP_GUIDE.md") && !requireNamespace("markdown", quietly = TRUE)) {
+            p("The tutorial can't be displayed because the R 'markdown' package is not installed.", style = "color:grey;")
+          } else if (file.exists("FRESH_DATABASE_SETUP_GUIDE.md")) {
             includeMarkdown("FRESH_DATABASE_SETUP_GUIDE.md")
           } else {
             p("Tutorial file (FRESH_DATABASE_SETUP_GUIDE.md) not found in the app directory.", style = "color:grey;")
@@ -498,9 +592,8 @@ server <- function(input, output, session) {
     NULL
   )
 
-  # Capture current filter state; debounced so it reads AFTER inputs have
-  # settled following a tab switch (the sidebar re-renders with defaults
-  # before the restore observer fires — 600ms clears both)
+  # Capture current filter state; debounced so a tab switch plus the restore
+  # updates it triggers settle before anything is saved
   current_filter_state_raw <- reactive({
     list(
       tab               = input$main_tabs,
@@ -520,21 +613,43 @@ server <- function(input, output, session) {
     saved_filters[[key]] <- s[setdiff(names(s), "tab")]
   })
 
-  # Restore saved filter state when switching to a filter tab
+  # Filter values a tab starts with the first time it is opened
+  default_filters <- function() {
+    vd <- isolate(variants())
+    list(
+      Variant_Type      = if ("Consequence" %in% names(vd))
+                            sort(unique(na.omit(vd$Consequence))) else NULL,
+      cadd_filter       = c(0, 50),
+      gnomad_af_filter  = 1,
+      gnomad_novel_only = FALSE,
+      gnomad_af_col     = NULL          # keep whichever AF column is selected
+    )
+  }
+
+  # TRUE when two input values are the same (order-insensitive for vectors)
+  same_value <- function(a, b) {
+    if (is.null(a) || is.null(b)) return(is.null(a) && is.null(b))
+    if (length(a) != length(b)) return(FALSE)
+    if (is.numeric(a) || is.numeric(b)) return(isTRUE(all.equal(as.numeric(a), as.numeric(b))))
+    setequal(as.character(a), as.character(b))
+  }
+
+  # Restore the tab's own filters when switching to a filter tab. Only values
+  # that actually differ are sent, so going to e.g. Candidate Variants and
+  # back sends nothing and the tables don't reload.
   observeEvent(input$main_tabs, {
     key <- get_tab_key(input$main_tabs)
     if (is.null(key)) return()
-    f <- saved_filters[[key]]
-    if (is.null(f)) return()
-    if (!is.null(f$Variant_Type))
+    f <- saved_filters[[key]] %||% default_filters()
+    if (!is.null(f$Variant_Type) && !same_value(f$Variant_Type, input$Variant_Type))
       updateCheckboxGroupInput(session, "Variant_Type",      selected = f$Variant_Type)
-    if (!is.null(f$cadd_filter))
+    if (!is.null(f$cadd_filter) && !same_value(f$cadd_filter, input$cadd_filter))
       updateSliderInput(session,        "cadd_filter",        value    = f$cadd_filter)
-    if (!is.null(f$gnomad_af_filter))
+    if (!is.null(f$gnomad_af_filter) && !same_value(f$gnomad_af_filter, input$gnomad_af_filter))
       updateSliderInput(session,        "gnomad_af_filter",   value    = f$gnomad_af_filter)
-    if (!is.null(f$gnomad_novel_only))
+    if (!is.null(f$gnomad_novel_only) && !same_value(f$gnomad_novel_only, input$gnomad_novel_only))
       updateCheckboxInput(session,      "gnomad_novel_only",  value    = f$gnomad_novel_only)
-    if (!is.null(f$gnomad_af_col))
+    if (!is.null(f$gnomad_af_col) && !same_value(f$gnomad_af_col, input$gnomad_af_col))
       updateSelectizeInput(session,     "gnomad_af_col",      selected = f$gnomad_af_col)
   })
 
@@ -580,101 +695,8 @@ server <- function(input, output, session) {
   uploaded_data <- variantUploadServer("variant_upload")
   cat("✓ variantUploadServer call completed\n\n")
 
-  # ── Dynamic sidebar ───────────────────────────────────────────────────────
-  output$dynamic_sidebar <- renderUI({
-    tab <- input$main_tabs
-
-    if (tab == "Genetic Variants") {
-      tagList(
-        fileInput("geneListFile", "Upload Gene List", accept = c(".csv", ".tsv")),
-        uiOutput("variant_type_filter"),
-        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
-                    min = 0, max = 50, value = c(0, 50), step = 1),
-        helpText("PHRED scores > 20 are generally considered deleterious"),
-        hr(),
-        h5("gnomAD Population Frequency", style = "margin-bottom:4px;"),
-        uiOutput("gnomad_col_selector"),
-        sliderInput("gnomad_af_filter",
-                    label    = "Max allele frequency:",
-                    min      = 0, max = 1, value = 1, step = 0.001),
-        checkboxInput("gnomad_novel_only",
-                      label = "Show ONLY novel variants (absent from gnomAD)",
-                      value = FALSE),
-        helpText("Novel variants (NA) have no frequency in gnomAD — often de novo or population-specific.")
-      )
-
-    } else if (tab == "Common Variants") {
-      tagList(
-        selectInput("PhenotypeTerm", "Filter by Phenotype Term:",
-                    choices = NULL, selected = NULL, multiple = TRUE),
-        selectInput("Patient", "Filter by Sample/Family:",
-                    choices  = if (length(names(Genotypes)) > 0) names(Genotypes) else character(0),
-                    multiple = TRUE),
-        hr(),
-        h5("Variant Filters", style = "margin-bottom:4px;"),
-        helpText("Independent of Genetic Variants and Common Genes filters."),
-        fileInput("geneListFile", "Upload Gene List", accept = c(".csv", ".tsv")),
-        uiOutput("variant_type_filter"),
-        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
-                    min = 0, max = 50, value = c(0, 50), step = 1),
-        helpText("PHRED scores > 20 are generally considered deleterious"),
-        hr(),
-        h5("gnomAD Population Frequency", style = "margin-bottom:4px;"),
-        uiOutput("gnomad_col_selector"),
-        sliderInput("gnomad_af_filter",
-                    label    = "Max allele frequency:",
-                    min      = 0, max = 1, value = 1, step = 0.001),
-        checkboxInput("gnomad_novel_only",
-                      label = "Show ONLY novel variants (absent from gnomAD)",
-                      value = FALSE),
-        helpText("Slider filters by max population AF. Variants absent from gnomAD (NA) are always included unless \"Novel only\" is checked.")
-      )
-
-    } else if (tab == "Common Genes by Patient Table") {
-      tagList(
-        selectInput("PhenotypeTerm", "Filter by Phenotype Term:",
-                    choices = NULL, selected = NULL, multiple = TRUE),
-        selectInput("Patient", "Filter by Sample/Family:",
-                    choices  = if (length(names(Genotypes)) > 0) names(Genotypes) else character(0),
-                    multiple = TRUE),
-        hr(),
-        h5("Variant Filters", style = "margin-bottom:4px;"),
-        helpText("Independent of Genetic Variants and Common Variants filters."),
-        fileInput("geneListFile", "Upload Gene List", accept = c(".csv", ".tsv")),
-        uiOutput("variant_type_filter"),
-        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
-                    min = 0, max = 50, value = c(0, 50), step = 1),
-        helpText("PHRED scores > 20 are generally considered deleterious"),
-        hr(),
-        h5("gnomAD Population Frequency", style = "margin-bottom:4px;"),
-        uiOutput("gnomad_col_selector"),
-        sliderInput("gnomad_af_filter",
-                    label    = "Max allele frequency:",
-                    min      = 0, max = 1, value = 1, step = 0.001),
-        checkboxInput("gnomad_novel_only",
-                      label = "Show ONLY novel variants (absent from gnomAD)",
-                      value = FALSE),
-        helpText("Slider filters by max population AF. Variants absent from gnomAD (NA) are always included unless \"Novel only\" is checked.")
-      )
-
-    } else if (tab == "Phenotypes") {
-      tagList(
-        selectInput("PhenotypeTerm", "Filter by Phenotype Term:",
-                    choices = NULL, selected = NULL, multiple = TRUE)
-      )
-
-    } else if (tab == "Lollipop Plot") {
-      tagList(
-        uiOutput("variant_type_filter"),
-        sliderInput("cadd_filter", "Filter by CADD PHRED Score:",
-                    min = 0, max = 50, value = c(0, 50), step = 1)
-      )
-
-    } else {
-      helpText("No filters apply to this tab.")
-    }
-  })
-  outputOptions(output, "dynamic_sidebar", suspendWhenHidden = FALSE)
+  # (The sidebar used to be a renderUI here that re-rendered on every tab
+  #  switch. It is now static in the UI; see sidebarPanel.)
 
   # ── gnomAD AF column selector ─────────────────────────────────────────────
   # Known AF column candidates in priority order — first one found in the
@@ -713,6 +735,8 @@ server <- function(input, output, session) {
     choices       <- c("Select All" = "all", "Deselect All" = "none", setNames(conseqs, display_names))
     checkboxGroupInput("Variant_Type", "Filter by Variant Type:", choices = choices, selected = "all")
   })
+  outputOptions(output, "variant_type_filter", suspendWhenHidden = FALSE)
+  outputOptions(output, "gnomad_col_selector", suspendWhenHidden = FALSE)
 
   # ── Refresh data after upload ─────────────────────────────────────────────
   observeEvent(input$refresh_data, {
@@ -1034,7 +1058,6 @@ server <- function(input, output, session) {
   # ColReorder state is preserved by the shiny:value save + initComplete restore
   # in the global JS — no proxy/replaceData needed.
   output$Variant_Type <- renderDT({
-    req(input$main_tabs == "Genetic Variants")
     df <- Variant_type_reac()
     make_dt(df, "Variant_Type", selection = "single", filter = "top")
   }, server = TRUE)
@@ -1254,21 +1277,42 @@ server <- function(input, output, session) {
 
   # ── Plots ─────────────────────────────────────────────────────────────────
   output$ConsequencePieChart <- renderPlot({
-    req(input$main_tabs == "Genetic Variants")
     fd <- Variant_type_reac()
     if (nrow(fd) == 0 || !"Consequence" %in% names(fd)) return(NULL)
+    # With many consequence types the legend crowds out the pie, so keep the
+    # 7 largest and lump the rest into "Other"; the legend shows % per slice.
+    TOP_N  <- 7
     counts <- fd %>%
+      mutate(Consequence = ifelse(is.na(Consequence), "NA", Consequence)) %>%
       count(Consequence, name = "count") %>%
       arrange(desc(count))
-    ggplot(counts, aes(x = "", y = count, fill = Consequence)) +
-      geom_bar(stat = "identity", width = 1) + coord_polar("y", start = 0) +
-      labs(title = "Variant Type Distribution", fill = "Consequence") +
-      theme_minimal() +
-      theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid = element_blank())
+    if (nrow(counts) > TOP_N + 1) {
+      counts <- bind_rows(
+        head(counts, TOP_N),
+        tibble(Consequence = "Other", count = sum(counts$count[-seq_len(TOP_N)]))
+      )
+    }
+    counts <- counts %>%
+      mutate(pct   = 100 * count / sum(count),
+             label = sprintf("%s (%.1f%%)", gsub("_", " ", Consequence), pct),
+             label = factor(label, levels = label))   # keep largest-first order
+
+    ggplot(counts, aes(x = "", y = count, fill = label)) +
+      geom_bar(stat = "identity", width = 1, colour = "white", linewidth = 0.3) +
+      coord_polar("y", start = 0) +
+      labs(title = "Variant Type Distribution", fill = NULL) +
+      theme_void(base_size = 12) +
+      theme(
+        aspect.ratio    = 1,                 # always a circle, never an oval
+        legend.position = "right",
+        legend.text     = element_text(size = 9),
+        legend.key.size = unit(0.45, "cm"),
+        plot.title          = element_text(face = "bold", hjust = 0.5),
+        plot.title.position = "plot"         # centre over pie + legend
+      )
   })
 
   output$PHRED_Histogram <- renderPlot({
-    req(input$main_tabs == "Genetic Variants")
     fd <- Variant_type_reac()
     if (nrow(fd) == 0) return(NULL)
     fd <- fd %>%
@@ -1512,7 +1556,6 @@ server <- function(input, output, session) {
 
   # ── renderDT outputs ──────────────────────────────────────────────────────
   output$Matching_ID_Table <- renderDT({
-    req(input$main_tabs == "Genetic Variants")
     df <- Matching_ID_Table()
     if (nrow(df) == 0) return(datatable(tibble(), options = list(dom = "t")))
 
@@ -1528,32 +1571,31 @@ server <- function(input, output, session) {
   })
 
   output$GeneList_Genotype_Table <- renderDT({
-    req(input$main_tabs == "Genetic Variants")
     df <- GeneList_Genotype_Table()
     make_dt(df, "GeneList_Genotype_Table", selection = "single", filter = "top")
   }, server = TRUE)
 
   output$Joined_Table <- renderDT({
-    req(input$main_tabs == "Common Variants", input$Patient)
+    req(input$Patient)
     df <- Joined_Table()
     make_dt(df, "Joined_Table", filter = "top")
   })
 
   output$Joined_Table_matching <- renderDT({
-    req(input$main_tabs == "Common Variants", input$Patient)
+    req(input$Patient)
     df <- Joined_Table_matching()
     if (nrow(df) == 0) return(datatable(tibble(), options = list(dom = "t")))
     make_dt(df, "Joined_Table_matching", selection = "single", filter = "top")
   })
 
   output$Joined_Gene_Table <- renderDT({
-    req(input$main_tabs == "Common Genes by Patient Table", input$Patient)
+    req(input$Patient)
     df <- Joined_Gene_Table()
     make_dt(df, "Joined_Gene_Table", filter = "top")
   })
 
   output$CommonGenesPlot <- renderPlot({
-    req(input$main_tabs == "Common Genes by Patient Table", input$Patient)
+    req(input$Patient)
     d <- gene_summary_raw()
     summary_df <- d$summary
     if (nrow(summary_df) == 0) return(NULL)

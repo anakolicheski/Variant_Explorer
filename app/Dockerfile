@@ -72,6 +72,15 @@ RUN R -e " \
     still_missing <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
     if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) else message('All packages verified installed.')"
 
+# Load every package the app attaches at startup, so a broken install fails
+# the BUILD with a clear error instead of crash-looping the container later.
+RUN R -e " \
+    pkgs <- c('stringr', 'shiny', 'shinythemes', 'tidyverse', 'readxl', 'DT', 'jsonlite', \
+              'httr', 'purrr', 'dplyr', 'readr', 'biomaRt', 'trackViewer', \
+              'GenomicRanges'); \
+    for (p in pkgs) suppressPackageStartupMessages(library(p, character.only = TRUE)); \
+    message('All app packages load OK.')"
+
 # ── Copy app files ────────────────────────────────────────────────────────────
 # The app file is copied in under a stable name (app.R), so a new version
 # only means changing the source filename on the next line.
@@ -83,6 +92,13 @@ COPY lolliplot_module.R FRESH_DATABASE_SETUP_GUIDE.m[d] ./
 
 # Create directories that will be bind-mounted from the host
 RUN mkdir -p annotations New_genotypes app_state www
+
+# Tutorial tab: convert the guide to an HTML fragment with pandoc (installed
+# above), so the image does not need the R 'markdown' package. Adding that
+# package pulled in a newer xfun that broke trackViewer loading.
+RUN if [ -f FRESH_DATABASE_SETUP_GUIDE.md ]; then \
+      pandoc FRESH_DATABASE_SETUP_GUIDE.md -f gfm -t html -o tutorial.html; \
+    fi
 ENV APP_STATE_DIR=/app/app_state
 
 # ── Runtime ───────────────────────────────────────────────────────────────────

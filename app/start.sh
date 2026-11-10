@@ -30,8 +30,21 @@ docker compose up -d --build
 
 # Wait for the app to respond
 echo "  Waiting for app to start..."
+tries=0
 until curl -s http://localhost:3838 > /dev/null 2>&1; do
     sleep 2
+    tries=$((tries + 1))
+    if [ "$tries" -ge 150 ]; then
+        # ~5 minutes without a response: show why, stop the container, exit
+        echo ""
+        echo "  ERROR: The app did not start within 5 minutes. Last lines of the log:"
+        echo "  ------------------------------------------------------------------"
+        docker logs --tail 25 variant-explorer
+        echo "  ------------------------------------------------------------------"
+        echo "  Send the lines above to whoever maintains the app."
+        docker compose down
+        exit 1
+    fi
 done
 
 # Open browser (works on Mac and most Linux)

@@ -34,10 +34,26 @@ docker compose up -d --build
 
 :: Wait for app to be ready
 echo  Waiting for app to start...
+set /a tries=0
 :wait
 timeout /t 2 /nobreak >nul
 curl -s http://localhost:3838 >nul 2>&1
-if %errorlevel% neq 0 goto wait
+if %errorlevel% equ 0 goto ready
+set /a tries+=1
+if %tries% lss 150 goto wait
+
+:: ~5 minutes without a response: show why, stop the container, and exit
+echo.
+echo  ERROR: The app did not start within 5 minutes. Last lines of the log:
+echo  ------------------------------------------------------------------
+docker logs --tail 25 variant-explorer
+echo  ------------------------------------------------------------------
+echo  Send the lines above to whoever maintains the app.
+docker compose down
+pause
+exit /b 1
+
+:ready
 
 :: Open browser
 echo  Opening browser...
