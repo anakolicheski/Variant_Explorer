@@ -37,40 +37,37 @@ RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')"
 
 COPY renv.lock renv.lock
 
-# Configure renv to use Bioconductor and restore all packages
-# Step 1: restore what renv can, don't fail the build if some packages are missing
-RUN R -e " \
-    repos <- c( \
-      CRAN = 'https://cloud.r-project.org', \
-      BioCsoft = 'https://bioconductor.org/packages/3.18/bioc', \
-      BioCann  = 'https://bioconductor.org/packages/3.18/data/annotation' \
-    ); \
-    options(renv.config.repos.override = repos, repos = repos); \
-    tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, will patch missing packages: ', conditionMessage(e)))"
+# Restore all packages in ONE layer. The three steps run in separate R
+# sessions (chained with &&) but share a single Docker layer, so if anything
+# fails, nothing is cached and the next build retries from scratch. (Separate
+# RUN layers let a silently failed restore get cached and reused forever.)
+#
+# CRAN comes from Posit Package Manager's prebuilt Linux binaries for Ubuntu
+# 22.04 (jammy, the base of rocker/shiny:4.3.3). No compiling: much faster
+# builds everywhere, and reliable on Apple Silicon Macs, where compiling
+# hundreds of packages under amd64 emulation is slow and fragile.
+# Bioconductor packages still come from Bioconductor.
+ENV R_REPOS="c(CRAN = 'https://packagemanager.posit.co/cran/__linux__/jammy/latest', BioCsoft = 'https://bioconductor.org/packages/3.18/bioc', BioCann = 'https://bioconductor.org/packages/3.18/data/annotation', BioCexp = 'https://bioconductor.org/packages/3.18/data/experiment')"
 
-# Step 2: fresh R session — find what's still missing and install it directly
+# Step 1: restore what renv can (errors reported, not fatal)
+# Step 2: fresh session, install anything still missing directly
+# Step 3: fresh session, verify; THIS one fails the build if anything is missing
 RUN R -e " \
-    repos <- c( \
-      CRAN = 'https://cloud.r-project.org', \
-      BioCsoft = 'https://bioconductor.org/packages/3.18/bioc', \
-      BioCann  = 'https://bioconductor.org/packages/3.18/data/annotation' \
-    ); \
-    lock <- renv::lockfile_read('renv.lock'); \
-    pkgs <- names(lock\$Packages); \
-    missing_pkgs <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
-    if (length(missing_pkgs) > 0) { \
-      message('Installing missing packages: ', paste(missing_pkgs, collapse = ', ')); \
-      install.packages(missing_pkgs, repos = repos) \
-    } else { \
-      message('Nothing missing.') \
-    }"
-
-# Step 3: another fresh session — final verification, this one IS allowed to fail the build
-RUN R -e " \
-    lock <- renv::lockfile_read('renv.lock'); \
-    pkgs <- names(lock\$Packages); \
-    still_missing <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
-    if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) else message('All packages verified installed.')"
+      repos <- eval(parse(text = Sys.getenv('R_REPOS'))); \
+      options(renv.config.repos.override = repos, repos = repos); \
+      tryCatch(renv::restore(prompt = FALSE), error = function(e) message('renv::restore reported errors, will patch missing packages: ', conditionMessage(e)))" \
+ && R -e " \
+      repos <- eval(parse(text = Sys.getenv('R_REPOS'))); \
+      pkgs <- names(renv::lockfile_read('renv.lock')\$Packages); \
+      missing_pkgs <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
+      if (length(missing_pkgs) > 0) { \
+        message('Installing missing packages: ', paste(missing_pkgs, collapse = ', ')); \
+        install.packages(missing_pkgs, repos = repos) \
+      } else message('Nothing missing.')" \
+ && R -e " \
+      pkgs <- names(renv::lockfile_read('renv.lock')\$Packages); \
+      still_missing <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]; \
+      if (length(still_missing) > 0) stop('Still failed to install: ', paste(still_missing, collapse = ', ')) else message('All packages verified installed.')"
 
 # Load every package the app attaches at startup, so a broken install fails
 # the BUILD with a clear error instead of crash-looping the container later.

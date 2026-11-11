@@ -28,9 +28,20 @@ if exist "cram_paths.xlsx" if not exist "app_state\cram_paths.xlsx" copy "cram_p
 echo  Starting app (first run, or after an update, may take a few minutes)...
 echo.
 
+:: Remove any running copy first. Only one copy can use port 3838, and a
+:: copy started from ANOTHER folder (e.g. the demo folder) would otherwise
+:: keep answering and show that folder's data instead of this one's.
+docker rm -f variant-explorer >nul 2>&1
+
 :: Start the container in background. --build rebuilds the image when the
 :: app files changed; it is quick otherwise.
 docker compose up -d --build
+if %errorlevel% neq 0 (
+    echo.
+    echo  ERROR: Docker could not build or start the app. See the messages above.
+    pause
+    exit /b 1
+)
 
 :: Wait for app to be ready
 echo  Waiting for app to start...
@@ -60,6 +71,7 @@ echo  Opening browser...
 start "" "http://localhost:3838"
 echo.
 echo  App is running at http://localhost:3838
+echo  Data folder: %CD%
 echo  Press any key in this window to stop the app.
 echo  (Closing the window instead leaves the app running; run stop.bat to stop it.)
 echo.

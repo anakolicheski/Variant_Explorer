@@ -25,7 +25,13 @@ for f in Phenotypes.xlsx cram_paths.xlsx; do
 done
 
 echo "  Starting app (first run, or after an update, may take a few minutes)..."
+# Remove any running copy first. Only one copy can use port 3838, and a copy
+# started from ANOTHER folder (e.g. the demo folder) would otherwise keep
+# answering and show that folder's data instead of this one's.
+docker rm -f variant-explorer > /dev/null 2>&1 || true
+
 # --build rebuilds the image when the app files changed; it is quick otherwise
+# (set -e at the top stops the script here if this fails)
 docker compose up -d --build
 
 # Wait for the app to respond
@@ -57,6 +63,7 @@ fi
 
 echo ""
 echo "  App is running at http://localhost:3838"
+echo "  Data folder: $(pwd)"
 echo "  Press Enter (or Ctrl+C) to stop the app."
 echo ""
 

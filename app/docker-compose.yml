@@ -2,6 +2,7 @@ services:
   variant-db:
     build: .
     image: variant-explorer:latest
+    platform: linux/amd64
     container_name: variant-explorer
     ports:
       - "3838:3838"
