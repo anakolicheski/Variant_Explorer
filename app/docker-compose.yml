@@ -2,6 +2,8 @@ services:
   variant-db:
     build: .
     image: variant-explorer:latest
+    # rocker/shiny is published for Intel/AMD (amd64) only. This makes Apple
+    # Silicon Macs use that image through emulation; no effect on Intel/AMD PCs.
     platform: linux/amd64
     container_name: variant-explorer
     ports:
