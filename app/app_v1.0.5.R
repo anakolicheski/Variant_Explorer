@@ -350,9 +350,7 @@ ui <- fluidPage(
             fluidRow(
               column(12,
                 tags$strong("Column Layout: "),
-                tags$span(style = "font-size:12px; color:#888; margin-left:6px;",
-                          "Reorder changes require a page refresh (F5) to display."),
-                tags$span("Drag columns to reorder, use 'Columns' button to show/hide. ",
+                tags$span("Use \u21c5 Reorder Columns above a table to reorder or hide columns. ",
                           style = "color: #666; font-size: 0.9em;"),
                 actionButton("save_col_layout",  "💾 Save Layout for Next Session",
                              class = "btn-sm btn-success", style = "margin-left:10px;"),
@@ -456,22 +454,27 @@ ui <- fluidPage(
           actionButton("refresh_data", "Refresh Data After Upload", class = "btn-primary")
         ),
 
-        # ── Tutorial ─────────────────────────────────────────────────────────
-        tabPanel("Tutorial",
-          # Docker: tutorial.html is made from the .md by pandoc at build time,
-          # so the image doesn't need the R 'markdown' package.
-          # RStudio: render the .md directly if 'markdown' is installed.
-          # includeMarkdown() runs while the page is built at startup, so it
-          # must only be called when the package exists, or the app won't start.
-          if (file.exists("tutorial.html")) {
-            includeHTML("tutorial.html")
-          } else if (file.exists("FRESH_DATABASE_SETUP_GUIDE.md") && !requireNamespace("markdown", quietly = TRUE)) {
-            p("The tutorial can't be displayed because the R 'markdown' package is not installed.", style = "color:grey;")
-          } else if (file.exists("FRESH_DATABASE_SETUP_GUIDE.md")) {
-            includeMarkdown("FRESH_DATABASE_SETUP_GUIDE.md")
-          } else {
-            p("Tutorial file (FRESH_DATABASE_SETUP_GUIDE.md) not found in the app directory.", style = "color:grey;")
-          }
+        # ── How to Use ───────────────────────────────────────────────────────
+        # Short per-tab instructions from APP_GUIDE.md. (Installation and data
+        # setup live in SETUP_GUIDE.md on GitHub, not in the app.)
+        tabPanel("How to Use",
+          div(style = "max-width: 900px; padding: 10px 5px 40px 5px;",
+            # Docker: app_guide.html is made from the .md by pandoc at build
+            # time, so the image doesn't need the R 'markdown' package.
+            # RStudio: render the .md directly if 'markdown' is installed.
+            # includeMarkdown() runs while the page is built at startup, so it
+            # must only be called when the package exists, or the app won't start.
+            if (file.exists("app_guide.html")) {
+              includeHTML("app_guide.html")
+            } else if (file.exists("APP_GUIDE.md") && requireNamespace("markdown", quietly = TRUE)) {
+              includeMarkdown("APP_GUIDE.md")
+            } else if (file.exists("APP_GUIDE.md")) {
+              p("The guide can't be displayed because the R 'markdown' package is not installed. ",
+                "Open APP_GUIDE.md in the app folder to read it.", style = "color:grey;")
+            } else {
+              p("Guide file (APP_GUIDE.md) not found in the app folder.", style = "color:grey;")
+            }
+          )
         )
       )
     )

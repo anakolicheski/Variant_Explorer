@@ -83,18 +83,18 @@ RUN R -e " \
 # only means changing the source filename on the next line.
 COPY app_v1.0.5.R            ./app.R
 COPY variant_upload_module.R ./
-# The [d] glob makes the tutorial file optional: the build still works if
-# FRESH_DATABASE_SETUP_GUIDE.md is not in the folder.
-COPY lolliplot_module.R FRESH_DATABASE_SETUP_GUIDE.m[d] ./
+# The [d] glob makes the guide optional: the build still works if
+# APP_GUIDE.md is not in the folder.
+COPY lolliplot_module.R APP_GUIDE.m[d] ./
 
 # Create directories that will be bind-mounted from the host
 RUN mkdir -p annotations New_genotypes app_state www
 
-# Tutorial tab: convert the guide to an HTML fragment with pandoc (installed
-# above), so the image does not need the R 'markdown' package. Adding that
-# package pulled in a newer xfun that broke trackViewer loading.
-RUN if [ -f FRESH_DATABASE_SETUP_GUIDE.md ]; then \
-      pandoc FRESH_DATABASE_SETUP_GUIDE.md -f gfm -t html -o tutorial.html; \
+# How to Use tab: convert the guide to an HTML fragment with pandoc
+# (installed above), so the image does not need the R 'markdown' package.
+# Adding that package pulled in a newer xfun that broke trackViewer loading.
+RUN if [ -f APP_GUIDE.md ]; then \
+      pandoc APP_GUIDE.md -f gfm -t html -o app_guide.html; \
     fi
 ENV APP_STATE_DIR=/app/app_state
 
