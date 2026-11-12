@@ -1421,11 +1421,13 @@ server <- function(input, output, session) {
     make_dt(crams, "Cram_paths", filter = "top")
   })
 
+  # pheno and list_of_files are passed as functions, so phenotype edits and
+  # samples added via Variant Upload are picked up without restarting
   lolliplotServer("geneLollipop",
                   all_variants_reactive = variants,
                   variant_data_reactive = Variant_type_reac,
-                  pheno                 = pheno_rv(),
-                  list_of_files         = list_of_files)
+                  pheno                 = pheno_rv,
+                  list_of_files         = function() list_of_files)
 
   # ── Joined_Table ──────────────────────────────────────────────────────────
   Joined_Table <- reactive({

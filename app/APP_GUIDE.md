@@ -20,18 +20,18 @@ The sidebar changes with the tab. Genetic Variants, Common Variants and Common G
 - **Upload Gene List**: a CSV file with a column named `Gene`. Only variants in those genes are shown.
 - **Filter by Variant Type**: tick the consequence types to include.
 - **CADD PHRED Score**: keep variants within the score range. Scores above 20 are generally considered deleterious.
-- **gnomAD Population Frequency**: choose the frequency column, then set the maximum allele frequency. Only variants absent from public databases (according to your own files) are kept when you tick **Show ONLY novel variants**.
+- **gnomAD Population Frequency**: choose the frequency column, then set the maximum allele frequency. Variants absent from gnomAD are kept unless you tick **Show ONLY novel variants**.
 - **Filter by Phenotype Term** / **Filter by Sample/Family** (Common Variants, Common Genes): choosing a phenotype term selects every sample with that term. You can also pick samples directly.
 
 ## Genetic Variants
 
 All variants in the database after the sidebar filters.
 
-- The **pie chart** shows the most common consequence types. The **histogram** shows a reactive distribution of CADD PHRED scores.
+- The **pie chart** shows the most common consequence types. The **histogram** shows CADD PHRED scores.
 - **Click a row** in the variant table to list every sample that carries that variant, with its main phenotype, in the table below it.
 - **Variants + Genotypes** shows the filtered variants with each sample's genotype. It also follows any column filters typed in the variant table.
 - **Save Layout for Next Session** keeps your column order and hidden columns for next time. **Reset All Layouts** restores the defaults.
-- Use the download buttons to export the current tables as CSV and explore them on excel or other sofwtare of choice.
+- Use the download buttons to export the current tables as CSV.
 
 ## Phenotypes
 
@@ -63,6 +63,8 @@ Your shortlist of variants for review.
 ## Lollipop Plot
 
 Pick a gene to see its variants plotted along the protein, colored by consequence, with protein domains drawn below. The table under the plot lists each variant with the samples carrying it and their phenotypes. Domain information is fetched online the first time a gene is viewed (only the gene symbol is sent), then stored for later.
+
+Use **Download PNG** (300 dpi image) or **Download PDF** (sharp at any size, best for figures) to save the plot. Screenshot tools can capture the plot while it is redrawing, which makes it look faded.
 
 ## Alignment paths
 
