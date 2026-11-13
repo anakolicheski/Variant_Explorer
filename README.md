@@ -47,7 +47,7 @@ Or download zip file from latest release.
 
 ## Quick start
 
-# Option A: Docker 
+### Option A: Docker 
 
 You need [Docker Desktop](https://www.docker.com/products/docker-desktop/). You do **not** need to install R.
 
