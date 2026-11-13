@@ -17,7 +17,7 @@ For detailed instructions on download installation and setting up your own datab
 
 ---
 
-## Requirements
+## Requirements - if loading directly on Rstudio
 
 R (≥ 4.0) with the following packages:
 
@@ -42,19 +42,52 @@ git clone "link --- still a place holder here"
 cd Variant_Explorer/app
 ```
 
-Or download zip file from latest release. See FRESH_DATABASE_SETUP_GUIDE.md under the app subfolder for more guidance.
-
+Or download zip file from latest release. 
 ---
+
+## Quick start
+
+# Option A: Docker 
+
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/). You do **not** need to install R.
+
+1. Install and open Docker Desktop.
+2. Download this repository (**Code → Download ZIP**) and extract it.
+3. Open the `app` folder and start the app:
+   - **Windows:** double-click `start.bat`
+   - **Mac / Linux:** in Terminal, run `./start.sh`
+4. Your browser opens at <http://localhost:3838> with demo data loaded.
+
+The first start takes a while (about 10–20 minutes) while the app is built. Later starts take seconds.
+
+**New to this?** Follow the step-by-step **[Setup Guide](SETUP_GUIDE.md)**. It covers installing Docker, the first launch, and replacing the demo data with your own.
+
+### Option B: Local R install
+
+If you prefer not to use Docker: 
+
+```
+setwd("app/") ## navigate to the folder where you saved the app files
+shiny::runApp()
+```
+
+Navigate to the Variant Upload tab and follow the steps to upload your first annotated variant file. 
+Click **Refresh Data After Upload** when done. See `SETUP_GUIDE.md` for a full walkthrough
+
+## Demo data
+
+The app ships with demo data from the [Harvard Personal Genome Project](https://pgp.med.harvard.edu/), so you can try every feature straight away. The [Setup Guide](SETUP_GUIDE.md#6-replace-the-demo-data-with-your-own) explains how to remove it and load your own samples.
 
 ## Directory Structure
 
 ```
 cooper-lab-variants/
 ├── app/
-│   ├── app_v1.0.4.R                 # Main application (filename changes with version)
+│   ├── app_v***.R                   # Main application (filename changes with version)
 │   ├── lolliplot_module.R           # Lollipop plot module
 │   ├── variant_upload_module.R      # Variant upload & processing module
-│   ├── FRESH_DATABASE_SETUP_GUIDE.md  # ***Need to update this guide to add the docker method***
+│   ├── APP_GUIDE.md                 # Guide on how to use the different app tabs
+│   ├── SETUP_GUIDE.md               # Full installation guide
 │   │
 │   ├── Dockerfile                   # Container build definition
 │   ├── docker-compose.yml           # Container orchestration / volume mounts
@@ -65,8 +98,8 @@ cooper-lab-variants/
 │   │
 │   ├── renv.lock                    # R package version lockfile (used by Docker build)
 │   │
-│   ├── annotations/                 # Annotation database (generated on first upload)
-│   ├── New_genotypes/               # Per-sample genotype files (generated on upload)
+│   ├── annotations/                 # Annotation database (pre-populated with test data, a new file is generated based on upload)
+│   ├── New_genotypes/               # Per-sample genotype files (pre-populated with test data, new files are generated based on upload)
 │   ├── candidates.csv               # Saved candidate variants
 │   ├── col_state_v2.json            # Saved column layout preferences
 │   ├── column_mapping_config.json   # Saved upload column-mapping preferences
@@ -76,10 +109,10 @@ cooper-lab-variants/
     ├── README.md                    # How to use the test files and data preprocessing
     ├── annotations/
     │   └── annotations_fordb.tsv    # Annotated variants from Harvard PGP public WGS data (pgp.med.harvard.edu); see preprocessing/ for pipeline scripts (without genotype information)
-    ├── New_genotypes/                # Example of what your input genotype files for the same variants in annotated variants will look like
+    ├── New_genotypes/               # Example of what your input genotype files for the same variants in annotated variants may look like
     │   └── hu1C1368_geno.tsv
     │       .....
-    ├── example_tsvs/                 # Example of annotated TSV files. Your own files to be uploaded should look a bit like these. You can also test upload these files
+    ├── example_tsvs/                # Example of annotated TSV files. Your own files to be uploaded should look similar these. You can also test upload these files
     │   └── hu1C1368.tsv
     │       .....
     ├── Phenotypes.xlsx                # Example phenotype table
@@ -97,59 +130,6 @@ app/col_state_v2.json           # Saved column layout preferences
 app/column_mapping_config.json  # Saved upload column-mapping preferences
 app/domain_cache.rds            # Cached protein domain data
 ```
----
-
-## Quick Start
-
-### Option A: Docker (recommended)
-
-No R installation required - see `DOCKER_SETUP.md` for full setup instructions. 
-
-```
-git clone "link --- still a place holder here"
-cd whateverfolder/app
-docker compose build
-docker compose up
-```
-
-The app opens at `http://localhost:3838`. 
-
-### Option B: Local R install
-
-If you prefer not to use Docker: 
-
-```
-setwd("app/") ## navigate to the folder where you saved the app files
-shiny::runApp()
-```
-
-Navigate to the Variant Upload tab and follow the steps to upload your first annotated variant file. 
-Click **Refresh Data After Upload** when done. See `FRESH_DATABASE_SETUP_GUIDE.md` for a full walkthrough
-
-### 1. Fresh setup (no existing data)
-
-Navigate to the **Variant Upload** tab and follow the steps to upload your first annotated variant file. Click **Refresh Data After Upload** when done. See `FRESH_DATABASE_SETUP_GUIDE.md` (available in the Tutorial tab) for a full walkthrough.
-
-### 2. Using the test data
-
-Copy the test files into the expected locations before launching:
-
-```bash
-cp test_data/annotations/annotations_fordb.tsv   app/annotations/annotations_fordb.tsv
-cp test_data/New_genotypes/*                     app/New_genotypes/
-cp test_data/Phenotypes.xlsx                      app/
-cp test_data/cram_paths.xlsx                      app/
-```
-
-Then launch:
-
-```r
-setwd("app/")
-shiny::runApp()
-```
-
-See `test_data/README.md` for a description of each file and what it demonstrates.
-
 ---
 
 ## Input File Format
@@ -180,6 +160,16 @@ Common VEP/Ensembl output field names (e.g. `SYMBOL`, `Consequence`, `CADD_PHRED
 | `col_state.json` | Column layout preferences | Save Layout button |
 
 ---
+
+## Using the app
+
+Each tab is explained in the app's **How to Use** tab.
+
+## Data privacy
+
+- Variant, genotype and phenotype files are read from folders on your computer and are never uploaded anywhere.
+- The only outside connection: the Lollipop Plot looks up protein domains online using the **gene symbol** only.
+- Your data folders (`annotations/`, `New_genotypes/`, `app_state/`) must never be committed to GitHub. `app_state/` is already in `.gitignore`.
 
 ## Notes
 
