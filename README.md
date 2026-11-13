@@ -23,14 +23,13 @@ R (≥ 4.0) with the following packages:
 
 ```r
 install.packages(c(
-  "shiny", "shinythemes", "bslib", "shinyWidgets", "tidyverse",
-  "readxl", "writexl", "DT", "jsonlite", "httr", "purrr",
-  "dplyr", "readr", "stringr", "markdown"
+  "shiny", "shinythemes", "tidyverse", "readxl", "writexl",
+  "DT", "jsonlite", "httr", "markdown"
 ))
 
 # Bioconductor packages (installed separately via BiocManager)
 if (!require("BiocManager")) install.packages("BiocManager")
-BiocManager::install(c("biomaRt", "trackViewer", "GenomicRanges"))
+BiocManager::install(c("trackViewer", "GenomicRanges"))
 ```
 
 ---
