@@ -4,7 +4,9 @@ A Shiny web application for interactive browsing, filtering, and curation of ann
 For detailed instructions on download installation and setting up your own database, or using the test data, please see SETUP_GUIDE.md and APP_GUIDE.md file under the app folder.
 
 ---
-
+<p align="center">
+  <img src="images/Genetic_Variants-07-27-26.png" width="700" alt="App screenshot">
+</p>
 ## Features
 
 - **Variant browsing** — filter by consequence type, CADD PHRED score, and gene list; live pie chart and PHRED histogram update with filters
